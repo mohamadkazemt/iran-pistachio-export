@@ -206,7 +206,12 @@ preflight_validation() {
     . /etc/os-release
     if [[ "$ID" != "ubuntu" && "$ID" != "debian" && "${ID_LIKE:-}" != *"ubuntu"* && "${ID_LIKE:-}" != *"debian"* ]]; then
       echo -e "${YELLOW}[WARNING] Target distribution is $NAME. Designed primarily for Ubuntu Server 20.04/22.04 LTS.${NC}"
-      read -p "Force continue installation anyway? (y/N): " CONTINUE_UNSUPPORTED
+      echo -n -e "Force continue installation anyway? (y/N): "
+      if [[ -c /dev/tty ]]; then
+        read -r CONTINUE_UNSUPPORTED < /dev/tty || true
+      else
+        read -r CONTINUE_UNSUPPORTED || true
+      fi
       if [[ ! "${CONTINUE_UNSUPPORTED:-}" =~ ^[yY]$ ]]; then
         echo -e "${RED}[PREFLIGHT ABORTED] Aborted by operator.${NC}"
         exit 1
@@ -272,12 +277,15 @@ preflight_validation
 
 # --- 3. Interactive Systems Config Wizard ---
 start_interactive_wizard() {
+  local has_redirected_tty=false
   # Attempt to attach standard input to the controlling TTY of the session to allow interactive prompts if stdout/stdin are redirected or piped
   if [[ ! -t 0 ]] && [[ -c /dev/tty ]]; then
+    exec 3<&0
     exec < /dev/tty
+    has_redirected_tty=true
   fi
 
-  if [[ ! -t 0 ]]; then
+  if [[ ! -t 0 ]] && [[ "$has_redirected_tty" != "true" ]]; then
     echo -e "\n${YELLOW}[INFO] Unattended/Non-interactive shell detected. Skipping wizard, using production defaults.${NC}"
     # If DB_PASS_RAW remains empty, generate one
     if [[ -z "${DB_PASS_RAW:-}" ]]; then
@@ -462,8 +470,12 @@ start_interactive_wizard() {
   fi
   echo -e "${BOLD}${CYAN}--------------------------------------------------------------------------------${NC}"
   
-  read -p "Commence physical extraction and system level orchestration? (y/N): " CONFIRM_INPUT || true
+  echo -n -e "Commence physical extraction and system level orchestration? (y/N): "
+  read -r CONFIRM_INPUT || true
   local CONFIRM="${CONFIRM_INPUT:-n}"
+  if [[ "$has_redirected_tty" == "true" ]]; then
+    exec <&3 3<&-
+  fi
   if [[ ! "$CONFIRM" =~ ^[yY]$ ]]; then
     echo -e "${RED}[ORCHESTRATION REJECTED] Deployment sequence terminated by administrator.${NC}"
     exit 1
@@ -987,7 +999,10 @@ if [[ "$ENABLE_SSL" == "y" ]]; then
   if [[ "$RUN_SSL" == "true" ]]; then
     echo "Executing Certbot TLS registries... Please ensure DNS pointers resolve correctly."
     certbot --nginx --non-interactive --agree-tos --email "$SSL_EMAIL" -d "$CUSTOM_DOMAIN" -d "www.$CUSTOM_DOMAIN" --keep-until-expiring || {
-      echo -e "${RED}[WARNING] Certbot generation skipped. Configure server DNS pointers first.${NC}"
+      echo -e "${YELLOW}[INFO] Twin-domain SSL registration failed. Retrying with main domain ONLY: $CUSTOM_DOMAIN...${NC}"
+      certbot --nginx --non-interactive --agree-tos --email "$SSL_EMAIL" -d "$CUSTOM_DOMAIN" --keep-until-expiring || {
+        echo -e "${RED}[WARNING] Certbot generation failed. Configure server DNS pointers first.${NC}"
+      }
     }
   fi
   systemctl enable certbot.timer || true
