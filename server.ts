@@ -154,6 +154,97 @@ app.get("/api/csrf", (req, res) => {
   res.json({ csrfToken: SECURE_CSRF_TOKEN });
 });
 
+// Lazy-loaded database helper to prevent boot-time failures under legacy environments
+let prismaClientInstance: any = null;
+async function checkPostgresHealth(): Promise<{ status: "OK" | "UNCONFIGURED" | "UNHEALTHY"; latencyMs?: number; error?: string }> {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    return { status: "UNCONFIGURED", error: "DATABASE_URL environment parameter not declared." };
+  }
+  try {
+    const { PrismaClient } = await import("@prisma/client");
+    if (!prismaClientInstance) {
+      prismaClientInstance = new PrismaClient({
+        datasources: { db: { url: dbUrl } }
+      });
+    }
+    const start = Date.now();
+    // Native fast raw query validation
+    await prismaClientInstance.$queryRaw`SELECT 1`;
+    const latency = Date.now() - start;
+    return { status: "OK", latencyMs: latency };
+  } catch (err: any) {
+    return { status: "UNHEALTHY", error: err.message || "Failed to query database server" };
+  }
+}
+
+// Lazy-loaded Redis connection helper
+let redisClientInstance: any = null;
+async function checkRedisHealth(): Promise<{ status: "OK" | "UNCONFIGURED" | "UNHEALTHY"; latencyMs?: number; error?: string }> {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    return { status: "UNCONFIGURED", error: "REDIS_URL environment parameter not declared." };
+  }
+  try {
+    const { createClient } = await import("redis");
+    if (!redisClientInstance) {
+      redisClientInstance = createClient({ url: redisUrl });
+      redisClientInstance.on("error", (e: any) => { /* ignore logs to maintain silence */ });
+      await redisClientInstance.connect();
+    }
+    const start = Date.now();
+    await redisClientInstance.ping();
+    const latency = Date.now() - start;
+    return { status: "OK", latencyMs: latency };
+  } catch (err: any) {
+    return { status: "UNHEALTHY", error: err.message || "Failed to communicate with Redis server" };
+  }
+}
+
+// Enterprise System Diagnostics (Health Check Rules)
+app.get("/api/health", async (req, res) => {
+  const ip = getClientIp(req);
+  const pgHealth = await checkPostgresHealth();
+  const redisHealth = await checkRedisHealth();
+  
+  // Basic worker check: count pending/failed jobs if postgresql is fully healthy
+  let queueStats = { pendingJobs: 0, failedJobs: 0, operational: false };
+  if (pgHealth.status === "OK" && prismaClientInstance) {
+    try {
+      const pendingCount = await prismaClientInstance.job.count({ where: { status: "QUEUED" } });
+      const failedCount = await prismaClientInstance.failedJob.count();
+      queueStats = { pendingJobs: pendingCount, failedJobs: failedCount, operational: true };
+    } catch {
+      // Job tables might not be migrated yet
+    }
+  }
+
+  const overallHealthy = pgHealth.status !== "UNHEALTHY" && redisHealth.status !== "UNHEALTHY";
+  
+  res.status(overallHealthy ? 200 : 503).json({
+    timestamp: new Date().toISOString(),
+    status: overallHealthy ? "HEALTHY" : "DEGRADED",
+    services: {
+      web: { status: "OK" },
+      database: pgHealth,
+      cache: redisHealth,
+      queueWorker: queueStats,
+    },
+    systemMetrics: {
+      uptimeSeconds: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+    }
+  });
+});
+
+// Alias mapping for root health queries
+app.get("/health", async (req, res) => {
+  const pgHealth = await checkPostgresHealth();
+  const redisHealth = await checkRedisHealth();
+  const overallHealthy = pgHealth.status !== "UNHEALTHY" && redisHealth.status !== "UNHEALTHY";
+  res.status(overallHealthy ? 200 : 503).json({ status: overallHealthy ? "OK" : "DOWN" });
+});
+
 // Products catalog API
 app.get("/api/products", (req, res) => {
   res.json(dbInstance.getProducts());

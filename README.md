@@ -22,15 +22,30 @@
 
 ---
 
-## ⚡ Quick One-Click Production Deployment / نصب و راه‌اندازی سریع با یک دستور
+## ⚡ Automated One-Click Production Deployment / نصب و راه‌اندازی خودکار تنها با یک دستور
 
-To provision the entire production ecosystem (Node LTS v22, PM2 Cluster Management, Nginx Reverse Proxy with Brotli/Gzip optimization, Fail2ban IDS security shields, automatic UFW Firewall, and Let's Encrypt SSL automation) on a fresh Ubuntu Server:
+### **English (EN)**
+Deploy our fully autonomous installation directly on a clean **Ubuntu Server (v20.04LTS / v22.04LTS / v24.04LTS)** in under 5 minutes. If no local project directory is detected, the installer automatically installs Git, clones the repository, checks out the specified branch, writes production configurations, compiles the Vite static bundles, launches safe PM2 cluster pools, registers Let's Encrypt SSL certificates, configures UFW firewall restrictions, and engages Fail2ban brute-force blockades under absolute zero-downtime guidelines.
 
-برای راه‌اندازی فوری سامانه با پیکربندی کامل (نود جی‌اس، وب‌سرور انجین‌ایکس، مدیریت فرآیندهای PM2، دیواره آتش، سیستم دفاعی Fail2ban و گواهینامه امنیتی SSL رایگان) بر روی سرور اوبونتو تمیز، کافی‌ست دستور زیر را به عنوان کاربر root در ترمینال اجرا کنید:
-
+Execute this command as the root user:
 ```bash
-# Executing safe production installer
-sudo bash install.sh
+# Option A: One-line direct execution
+bash <(curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh)
+
+# Option B: Standard curl pipelining
+curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh | bash
+```
+
+### **فارسی (FA)**
+امکان استقرار همه‌جانبه‌ی این سامانه روی **سرورهای خام لینوکس اوبونتو** به صورت کاملاً خودکار در کمتر از ۵ دقیقه فراهم گردیده است. در صورتی که فایل‌های پروژه روی سرور موجود نباشد، نصب‌کننده هوشمند ابتدا اقدام به نصب گیت کرده، مخزن گیت‌هاب را شبیه‌سازی (Clone) می‌کند، کدهای پروداکشن را بیلد کرده، فرآیندهای پس‌زمینه PM2 را خوشه‌بندی کرده، فایروال سرورUFW و سیستم حفاظتی Fail2ban را فعال نموده و نهایتاً گواهینامه امنیتی رایگان SSL Let's Encrypt را برای دامنه شما صادر و متصل می‌کند.
+
+کافی‌ست دستور زیر را به عنوان کاربر ارشد سیستم (`root`) خط فرمان اوبونتو وارد نمایید:
+```bash
+# روش اول: اجرای تک خطی مستقیم از گیت‌هاب
+bash <(curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh)
+
+# روش دوم: با استفاده از لوله‌کشی استاندارد curl 
+curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh | bash
 ```
 
 ---
@@ -110,11 +125,12 @@ These brand naming matrices are deeply integrated into the SEO, JSON-LD, schema 
 
 For itemized walkthroughs and configurations, consult the specialized files below:
 
-1. **[README_FA.md (راهنمای جامع فارسی)](./README_FA.md)** — مستندات کامل گام‌به‌گام پیکربندی و نگهداری فرآیند توسعه لایه فرانت‌اند و بک‌اند به زبان شیرین فارسی.
-2. **[README_EN.md (English Operations Guide)](./README_EN.md)** — Complete step-by-step developer walkthrough for the full-stack portal in English.
-3. **[DEPLOYMENT.md (Advanced Server Infrastructure)](./DEPLOYMENT.md)** — In-depth configurations for running under systemd, reverse proxies, and continuous integration engines.
-4. **[SECURITY.md (Cybersecurity Matrix & Hardening)](./SECURITY.md)** — Guide to active security setups including Fail2ban, Rate Limiting, CORS headers, CSRF validation, and input sanitation.
-5. **[BACKUPS.md (Data Repositories & Restoration)](./BACKUPS.md)** — Details regarding local JSON-LD databases backends, backup cron schedules, and disaster recovery.
+1. **[DATABASE_ARCHITECTURE.md (Enterprise DB & Hardening Blueprint)](./docs/DATABASE_ARCHITECTURE.md)** — Comprehensive review of PostgreSQL schemas, GIN weighted search indices, range partitioning strategy, security controls, and data migration roadmap.
+2. **[README_FA.md (راهنمای جامع فارسی)](./README_FA.md)** — مستندات کامل گام‌به‌گام پیکربندی و نگهداری فرآیند توسعه لایه فرانت‌اند و بک‌اند به زبان شیرین فارسی.
+3. **[README_EN.md (English Operations Guide)](./README_EN.md)** — Complete step-by-step developer walkthrough for the full-stack portal in English.
+4. **[DEPLOYMENT.md (Advanced Server Infrastructure)](./DEPLOYMENT.md)** — In-depth configurations for running under systemd, reverse proxies, and continuous integration engines.
+5. **[SECURITY.md (Cybersecurity Matrix & Hardening)](./SECURITY.md)** — Guide to active security setups including Fail2ban, Rate Limiting, CORS headers, CSRF validation, and input sanitation.
+6. **[BACKUPS.md (Data Reprepositories & Restoration)](./BACKUPS.md)** — Details regarding local JSON-LD databases backends, backup cron schedules, and disaster recovery.
 
 ---
 

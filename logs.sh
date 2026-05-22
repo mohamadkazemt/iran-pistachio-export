@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 # ==============================================================================
-#  ESLAMI GLOBAL TRADING - LOG INTERFACE OUT
+#  ESLAMI GLOBAL TRADING — COMPACT OPERATIONS LOG WATCHER
 # ==============================================================================
 
 if command -v pm2 &> /dev/null; then
-  # Streams the output or error logs of the application
-  pm2 logs eslami-global-trading-app --lines 100
+  echo "Streaming logs from eslami-web, eslami-worker, and eslami-scheduler..."
+  pm2 logs
 else
-  echo -e "\033[0;31mError: PM2 is not installed or available.\033[0m"
-  exit 1
+  echo "[ERROR] PM2 is not active on this server. Checking systemd logs..."
+  journalctl -u nginx --no-pager -n 50
 fi

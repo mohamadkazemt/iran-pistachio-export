@@ -1,0 +1,592 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+//  1. USER MANAGEMENT & SECURITY HARDENING
+// ==========================================
+
+enum UserRole {
+  GLOBAL_ADMIN
+  TRADE_BROKER
+  LOGISTICS_OFFICER
+  REGISTERED_CLIENT
+  COMPLIANCE_AUDITOR
+}
+
+model User {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  // Outdated separate "salt" column has been physically removed for vulnerability resistance.
+  // We use modern bcrypt/Argon2id hashing algorithm which self-manages security salt salts internally.
+  passwordHash          String    @map("password_hash")
+  fullName              String    @map("full_name")
+  companyName           String?   @map("company_name")
+  phoneNumber           String?   @map("phone_number")
+  role                  UserRole  @default(REGISTERED_CLIENT)
+  isActive              Boolean   @default(true) @map("is_active")
+
+  // Multi-Factor Authentication (MFA) Setup
+  mfaEnabled            Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret             String?   @map("mfa_secret") // Encrypted TOTP secret
+  mfaBackupCodes        Json?     @map("mfa_backup_codes") // Encrypted array of standard secure tokens
+
+  // Security Locking Mechanisms (Brute force resistance)
+  loginAttemptsLimit    Int       @default(5) @map("login_attempts_limit")
+  failedLoginAttempts   Int       @default(0) @map("failed_login_attempts")
+  lockedUntil           DateTime? @map("locked_until")
+  lastPasswordChangeAt  DateTime  @default(now()) @map("last_password_change_at")
+  lastFingerprintHash   String?   @map("last_fingerprint_hash") // Multi-dimensional browser canvas ID
+  lastIpAddress         String?   @map("last_ip_address")
+  ipReputationBlocked   Boolean   @default(false) @map("ip_reputation_blocked")
+
+  // Soft Delete Architecture
+  deletedAt             DateTime? @map("deleted_at")
+  deletedBy             String?   @map("deleted_by")
+  archivedAt            DateTime? @map("archived_at")
+
+  // Audit and Tracking Records
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  createdBy             String?   @map("created_by")
+  updatedBy             String?   @map("updated_by")
+
+  // Relational Fields
+  uploadedMedia         MediaFile[]          @relation("UserMediaUploads")
+  assignedRfqs          RFQ[]                @relation("BrokerAssignments")
+  submittedRfqs         RFQ[]                @relation("ClientSubmissions")
+  auditLogs             AuditEvent[]         @relation("ActorAuditLogs")
+  apiTokens             ApiToken[]
+  editedVersions        ContentVersion[]     @relation("VersionCreator")
+  negotiationLogEntries NegotiationLog[]
+  quotationsMade        QuotationHistory[]
+
+  @@index([email, isActive])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ==========================================
+//  2. CLOUD-READY FILE STORAGE SCHEMA
+// ==========================================
+
+enum StorageProvider {
+  LOCAL_DISK
+  AWS_S3
+  CLOUDFLARE_R2
+  GOOGLE_CLOUD_STORAGE
+}
+
+enum OptimizationStatus {
+  PENDING
+  PROCESSING
+  OPTIMIZED
+  FAILED
+}
+
+model MediaFile {
+  id                 String             @id @default(uuid())
+  storageProvider    StorageProvider    @default(LOCAL_DISK) @map("storage_provider")
+  bucketName         String?            @map("bucket_name")
+  objectKey          String             @map("object_key") // Unique key or local path in folders
+  originalFilename   String             @map("original_filename")
+  mimeType           String             @map("mime_type")
+  extension          String
+  checksumSha256     String?            @map("checksum_sha256")
+  fileSize           Int                @map("file_size")
+  width              Int?
+  height             Int?
+  
+  // Multilingual ALT tags per exact requirements (Persian, English, Arabic, Chinese)
+  altEn              String?            @map("alt_en")
+  altFa              String?            @map("alt_fa")
+  altAr              String?            @map("alt_ar")
+  altZh              String?            @map("alt_zh")
+
+  optimizationStatus OptimizationStatus @default(PENDING) @map("optimization_status")
+
+  // Creator Audits
+  uploadedById       String             @map("uploaded_by")
+  uploadedBy         User               @relation("UserMediaUploads", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  // Soft Delete Coordinates
+  deletedAt          DateTime?          @map("deleted_at")
+  deletedBy          String?            @map("deleted_by")
+
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  // Image assets mapping
+  products           Product[]          @relation("ProductMediaImages")
+  posts              Post[]             @relation("PostMediaImages")
+
+  @@index([objectKey])
+  @@index([deletedAt])
+  @@map("media_files")
+}
+
+// ==========================================
+//  3. PRODUCT DIRECTORY (MULTILINGUAL)
+// ==========================================
+
+model Product {
+  id                 String             @id @default(uuid())
+  
+  // Base localized attributes
+  nameEn             String             @map("name_en")
+  nameFa             String             @map("name_fa")
+  nameAr             String?            @map("name_ar")
+  nameZh             String?            @map("name_zh")
+
+  // Markdown multilingual descriptions
+  descriptionEn      String             @map("description_en")
+  descriptionFa      String             @map("description_fa")
+  descriptionAr      String?            @map("description_ar")
+  descriptionZh      String?            @map("description_zh")
+
+  // Highly-optimized SEO translation routing
+  slugEn             String             @unique @map("slug_en")
+  slugFa             String             @unique @map("slug_fa")
+  slugAr             String?            @unique @map("slug_ar")
+  slugZh             String?            @unique @map("slug_zh")
+
+  canonicalUrlEn     String?            @map("canonical_url_en")
+  canonicalUrlFa     String?            @map("canonical_url_fa")
+
+  // Visual Assets
+  thumbnailId        String?            @map("thumbnail_id")
+  images             MediaFile[]        @relation("ProductMediaImages")
+
+  // Core logistics indices
+  priceRangeMin      Decimal            @map("price_range_min") @db.Decimal(12, 2)
+  priceRangeMax      Decimal            @map("price_range_max") @db.Decimal(12, 2)
+  currency           String             @default("USD")
+  unit               String             // e.g. "Metric Ton", "Gram"
+  hsCode             String             @map("hs_code")
+  originEn           String             @map("origin_en")
+  originFa           String             @map("origin_fa")
+  minOrderQuantity   Decimal            @map("min_order_quantity") @db.Decimal(12, 2)
+  leadTimeDays       Int                @map("lead_time_days")
+
+  categories         String[]
+  purityGradeEn      String?            @map("purity_grade_en")
+  purityGradeFa      String?            @map("purity_grade_fa")
+  packagingDetailsEn String?            @map("packaging_details_en")
+  packagingDetailsFa String?            @map("packaging_details_fa")
+
+  // Specifications stored hierarchically (Key-Value translations)
+  technicalSpecs     Json               @map("technical_specs") // Schema structured translation matrix
+
+  // Soft Delete Coordinates
+  deletedAt          DateTime?          @map("deleted_at")
+  deletedBy          String?            @map("deleted_by")
+
+  // Auditing Tracking Actions
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  createdBy          String?            @map("created_by")
+  updatedBy          String?            @map("updated_by")
+
+  // Relational references
+  rfqItems           RfqItem[]
+
+  @@index([hsCode])
+  @@index([deletedAt])
+  @@map("products")
+}
+
+// ==========================================
+//  4. POSTS & EDITORIAL CMS ECOSYSTEM
+// ==========================================
+
+enum PublishState {
+  DRAFT
+  PENDING_COMPLIANCE
+  PUBLISHED
+  ARCHIVED
+}
+
+model Post {
+  id                 String             @id @default(uuid())
+  status             PublishState       @default(DRAFT)
+  
+  // Multilingual Headlines
+  titleEn            String             @map("title_en")
+  titleFa            String             @map("title_fa")
+  titleAr            String?            @map("title_ar")
+  titleZh            String?            @map("title_zh")
+
+  // Multilingual URLs
+  slugEn             String             @unique @map("slug_en")
+  slugFa             String             @unique @map("slug_fa")
+  slugAr             String?            @unique @map("slug_ar")
+  slugZh             String?            @unique @map("slug_zh")
+
+  // Content Bodies
+  contentEn          String             @map("content_en")
+  contentFa          String             @map("content_fa")
+  contentAr          String?            @map("content_ar")
+  contentZh          String?            @map("content_zh")
+
+  // Meta Elements (SEO Optimization per locale)
+  seoTitleEn         String?            @map("seo_title_en")
+  seoTitleFa         String?            @map("seo_title_fa")
+  seoDescEn          String?            @map("seo_desc_en")
+  seoDescFa          String?            @map("seo_desc_fa")
+  ogImageEn          String?            @map("og_image_en")
+  ogImageFa          String?            @map("og_image_fa")
+  hreflangTags       Json?              @map("hreflang_tags") // Auto-rendered dynamic mappings
+
+  featuredImageId    String?            @map("featured_image_id")
+  mediaGalleries     MediaFile[]        @relation("PostMediaImages")
+
+  tags               String[]
+  viewsCount         Int                @default(0) @map("views_count")
+
+  // Soft Delete Coordinates
+  deletedAt          DateTime?          @map("deleted_at")
+  deletedBy          String?            @map("deleted_by")
+
+  // CMS Auditing & Author Accountability
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  createdBy          String?            @map("created_by")
+  updatedBy          String?            @map("updated_by")
+
+  @@index([deletedAt])
+  @@index([status])
+  @@map("posts")
+}
+
+// ==========================================
+//  5. CONTENT VERSIONING SYSTEM (CMS ROLLBACK)
+// ==========================================
+
+model ContentVersion {
+  id            String    @id @default(uuid())
+  entityType    String    @map("entity_type") // e.g., "Post", "Product"
+  entityId      String    @map("entity_id")   // UUID of host entity
+  versionNumber Int       @map("version_number")
+  snapshot      Json      // Fully serialized JSON State of the entity at this exact moment
+  comment       String?   @map("comment")
+  
+  editedById    String    @map("edited_by")
+  editedBy      User      @relation("VersionCreator", fields: [editedById], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@unique([entityType, entityId, versionNumber])
+  @@map("content_versions")
+}
+
+// ==========================================
+//  6. HIGH-COMPLIANCE CARGO RFQ & NEGOTIATION
+// ==========================================
+
+enum PriorityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CustomsWorkflowStage {
+  INITIATED
+  DOCUMENT_VERIFICATION
+  TARIFF_EVALUATION
+  CUSTOMS_SUBMISSION
+  PASSED
+  SUSPENDED
+}
+
+enum RfqStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  QUOTED
+  NEGOTIATING
+  CONCLUDED
+  CANCELLED
+}
+
+model RFQ {
+  id                   String               @id @default(uuid())
+  rfqNumber            String               @unique @map("rfq_number")
+  status               RfqStatus            @default(SUBMITTED)
+  priorityLevel        PriorityLevel        @default(MEDIUM) @map("priority_level")
+  customsStage         CustomsWorkflowStage @default(INITIATED) @map("customs_stage")
+
+  // Dynamic Routing Roles mapping
+  clientId             String               @map("client_id")
+  client               User                 @relation("ClientSubmissions", fields: [clientId], references: [id], onDelete: Restrict)
+  
+  brokerId             String?              @map("broker_id")
+  broker               User?                @relation("BrokerAssignments", fields: [brokerId], references: [id], onDelete: SetNull)
+
+  // Transport details parameters (Incoterms 2020)
+  incoterm             String               // CIF, FOB, FCA, EXW, DDP, etc.
+  destinationPort      String               @map("destination_port")
+  dischargeCountry     String               @map("discharge_country")
+  targetDeliveryDate   DateTime?            @map("target_delivery_date")
+  paymentTerms         String?              @map("payment_terms") // Safe banking protocols credit lines
+  
+  internalNotes        String?              @map("internal_notes") // Hidden view notes strictly for admins/brokers
+
+  // Soft Delete Coordinates
+  deletedAt            DateTime?            @map("deleted_at")
+  deletedBy            String?              @map("deleted_by")
+
+  // Audit Tracking Revisions
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  createdBy            String?              @map("created_by")
+  updatedBy            String?              @map("updated_by")
+
+  // Children Relational Arrays
+  items                RfqItem[]
+  quotationHistory     QuotationHistory[]
+  negotiations         NegotiationLog[]
+  documents            RfqDocument[]
+
+  @@index([rfqNumber])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("rfqs")
+}
+
+model RfqItem {
+  id               String   @id @default(uuid())
+  rfqId            String   @map("rfq_id")
+  rfq              RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  
+  productId        String   @map("product_id")
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  
+  targetQuantity   Decimal  @map("target_quantity") @db.Decimal(12, 2)
+  unit             String
+  purityGradeValue String?  @map("purity_grade_value")
+  packagingRequest String?  @map("packaging_request")
+
+  @@map("rfq_items")
+}
+
+model QuotationHistory {
+  id              String   @id @default(uuid())
+  rfqId           String   @map("rfq_id")
+  rfq             RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  
+  versionNumber   Int      @map("version_number")
+  quotedPrice     Decimal  @map("quoted_price") @db.Decimal(12, 2)
+  currency        String   @default("USD")
+  validUntil      DateTime @map("valid_until")
+  freightTerms    String   @map("freight_terms")
+  complianceNotes String?  @map("compliance_notes")
+  
+  submittedById   String   @map("submitted_by")
+  submittedBy     User     @relation(fields: [submittedById], references: [id], onDelete: Restrict)
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([rfqId, versionNumber])
+  @@map("quotation_history")
+}
+
+model NegotiationLog {
+  id         String   @id @default(uuid())
+  rfqId      String   @map("rfq_id")
+  rfq        RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  
+  senderId   String   @map("sender_id")
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  
+  message    String
+  metadata   Json?    // Optional log context: attachments, suggested revisions, etc.
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("negotiation_logs")
+}
+
+enum VerificationState {
+  PENDING_UPLOAD
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model RfqDocument {
+  id                String            @id @default(uuid())
+  rfqId             String            @map("rfq_id")
+  rfq               RFQ               @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  
+  documentType      String            @map("document_type") // e.g. "Phytosanitary Cert", "Customs Bond"
+  mediaFileId       String            @map("media_file_id")
+  verificationState VerificationState @default(PENDING_UPLOAD) @map("verification_state")
+  verifierNotes     String?           @map("verifier_notes")
+  
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@map("rfq_documents")
+}
+
+// ==========================================
+//  7. EVENT-DRIVEN AUDIT LOGGING
+// ==========================================
+
+model AuditEvent {
+  id            String   @id @default(uuid())
+  entityType    String   @map("entity_type") // e.g., "User", "Product", "RFQ"
+  entityId      String?  @map("entity_id")
+  actionType    String   @map("action_type") // CREATE, UPDATE, DELETE, RESTORE, LOGIN, EXPORT
+  
+  actorId       String?  @map("actor_id")
+  actor         User?    @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+
+  beforeState   Json?    @map("before_state") // Complete JSON snapshots before execution
+  afterState    Json?    @map("after_state")  // Complete JSON snapshots after execution
+  
+  correlationId String   @map("correlation_id") // Relates multiple transactions across clusters
+  requestId     String?  @map("request_id") // Edge engine context tracers
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  
+  timestamp     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([correlationId])
+  @@index([timestamp])
+  @@map("audit_events")
+}
+
+// ==========================================
+//  8. INTEGRATIONS, API TOKENS & WEBHOOKS
+// ==========================================
+
+model ApiToken {
+  id           String   @id @default(uuid())
+  name         String
+  tokenHash    String   @unique @map("token_hash") // SHA-256 secure hash
+  scopes       String[] // API privileges e.g. ["rfq:read", "inventory:update"]
+  rateLimitRpc Int      @default(60) @map("rate_limit_rpc") // Standard requests per minute margin
+  
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expiresAt    DateTime? @map("expires_at")
+  lastUsedAt   DateTime? @map("last_used_at")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("api_tokens")
+}
+
+model WebhookSubscription {
+  id          String   @id @default(uuid())
+  targetUrl   String   @map("target_url")
+  signingKey  String   @map("signing_key") // Secure webhook signature key
+  active      Boolean  @default(true)
+  events      String[] // Triggering lists e.g. ["rfq.created", "quotation.issued"]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("webhook_subscriptions")
+}
+
+// ==========================================
+//  9. DISTRIBUTED ASYNC QUEUE MODULE
+// ==========================================
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Job {
+  id           String     @id @default(uuid())
+  queueName    String     @default("default") @map("queue_name")
+  payload      Json
+  status       JobStatus  @default(QUEUED)
+  attempts     Int        @default(0)
+  maxAttempts  Int        @default(3) @map("max_attempts")
+  priority     Int        @default(0) // Higher numbers processed first
+  
+  runAt        DateTime   @default(now()) @map("run_at")
+  startedAt    DateTime?  @map("started_at")
+  completedAt  DateTime?  @map("completed_at")
+  
+  errorLog     String?    @map("error_log")
+
+  @@index([status, runAt])
+  @@map("jobs")
+}
+
+model FailedJob {
+  id         String   @id @default(uuid())
+  queueName  String   @map("queue_name")
+  payload    Json
+  failedAt   DateTime @default(now()) @map("failed_at")
+  error      String   @db.Text
+
+  @@map("failed_jobs")
+}
+
+model ScheduledTask {
+  id             String    @id @default(uuid())
+  taskName       String    @unique @map("task_name") // e.g., "DB_BACKUP_DAEMON", "SEO_AUTO_REPAIR"
+  cronExpression String    @map("cron_expression")
+  lastRunAt      DateTime? @map("last_run_at")
+  nextRunAt      DateTime? @map("next_run_at")
+  active         Boolean   @default(true)
+
+  @@map("scheduled_tasks")
+}
+
+// ==========================================
+//  10. ANALYTICS & UTM CAMPAIGN ECOSYSTEM
+// ==========================================
+
+model AnalyticsSession {
+  id               String           @id @default(uuid())
+  fingerprintHash  String           @map("fingerprint_hash") // Dynamic browser canvas id
+  visitorIp        String?          @map("visitor_ip")
+  userAgent        String?          @map("user_agent")
+  deviceType       String?          @map("device_type") // desktop, mobile, tablet
+  countryCode      String?          @map("country_code")
+  
+  // UTM Tracking matrices
+  utmSource        String?          @map("utm_source")
+  utmMedium        String?          @map("utm_medium")
+  utmCampaign      String?          @map("utm_campaign")
+  utmTerm          String?          @map("utm_term")
+  utmContent       String?          @map("utm_content")
+  
+  createdAt        DateTime         @default(now()) @map("created_at")
+  events           AnalyticsEvent[]
+
+  @@index([fingerprintHash])
+  @@index([createdAt])
+  @@map("analytics_sessions")
+}
+
+model AnalyticsEvent {
+  id         String           @id @default(uuid())
+  sessionId  String           @map("sessionId")
+  session    AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  eventName  String           @map("event_name") // "rfq_funnel_stage", "product_view", "heatmap_click"
+  category   String
+  urlPath    String           @map("url_path")
+  payload    Json?            // Event telemetry markers
+
+  timestamp  DateTime         @default(now())
+
+  @@index([eventName])
+  @@index([timestamp])
+  @@map("analytics_events")
+}

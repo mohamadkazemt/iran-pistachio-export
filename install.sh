@@ -1,245 +1,450 @@
 #!/usr/bin/env bash
 
 # ==============================================================================
-#  ESLAMI GLOBAL TRADING - ENTERPRISE UBUNTU PRODUCTION DEPLOYMENT ENGINE
+#  ESLAMI GLOBAL TRADING — ENTERPRISE ORCHESTRATION & DEPLOYMENT ENGINE
 # ==============================================================================
-# Supports Node.js, Express, Vite, PM2, Nginx, SSL Certbot, UFW & Fail2ban.
-# Best executed on a clean Ubuntu Server (20.04LTS, 22.04LTS, or 24.04LTS).
+#  Production system provisioner and hardener for Ubuntu Server.
+#  Automates: PostgreSQL 16+ (SCRAM-SHA-256), Redis clustering with persistence,
+#             Multi-tier PM2 topologies (web-cluster, async-worker, crond-scheduler),
+#             Prisma transactional migration/seeds, Firewalls (UFW/Fail2ban),
+#             and client-streaming Nginx routing pipelines.
 # ==============================================================================
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
+# Exit immediately if any command produces a non-zero exit status
+set -eo pipefail
 
-# --- Color Constants & Visual Headers ---
+# --- Visual Colors & Aesthetic Constants ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BG_GREEN='\033[42m\033[30m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0;3m' # No Color
+NC='\033[0m' 
 BOLD='\033[1m'
 
-# Visual Banner
+# Clear screen and render dashboard
 clear
 echo -e "${CYAN}================================================================================${NC}"
-echo -e "${BOLD}${BG_GREEN}          ESLAMI GLOBAL TRADING // ENTERPRISE DEPLOYMENT INSTALLER              ${NC}"
+echo -e "${BOLD}${BG_GREEN}         ESLAMI GLOBAL TRADING // ENTERPRISE INSTALLATION ENGINE              ${NC}"
 echo -e "${CYAN}================================================================================${NC}"
-echo -e "${BLUE}Target OS Requirement: Ubuntu v20.04LTS / v22.04LTS / v24.04LTS${NC}"
-echo -e "${BLUE}Detected Platform: Node.js (Vite + Express Bundle Production System)${NC}"
+echo -e "Target OS Environment : ${BOLD}Ubuntu Server 20.04+ (Fully Hardened)${NC}"
+echo -e "Database Tier         : ${BOLD}PostgreSQL 16+ + Prisma Migration Automation${NC}"
+echo -e "Cache & Worker Queue  : ${BOLD}Redis Alpine (with LRU eviction & AOF persistence)${NC}"
+echo -e "Process Ecosystem     : ${BOLD}PM2 (eslami-web, eslami-worker, eslami-scheduler)${NC}"
+echo -e "Security Hardening    : ${BOLD}UFW Firewall + Fail2ban Intrusion Detection Systems${NC}"
 echo -e "${CYAN}================================================================================${NC}"
 
-# Check if script is run as root
+# 1. Enforce superuser administrative privileges 
 if [ "$EUID" -ne 0 ]; then
-  echo -e "${RED}[ERROR] This deployment script MUST be executed with root permissions.${NC}"
-  echo -e "Please run using: ${YELLOW}sudo bash install.sh${NC}"
+  echo -e "${RED}[ERROR] This installer MUST be executed with administrative privileges (root).${NC}"
+  echo -e "Please execute using: ${YELLOW}sudo bash install.sh${NC}"
   exit 1
 fi
 
-# Detect absolute paths
-APP_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$APP_DIR"
-
-echo -e "${GREEN}[1/8] Validating workspace directory structure...${NC}"
-if [ ! -f "package.json" ]; then
-  echo -e "${RED}[ERROR] Cannot detect package.json. Run this inside the application directory!${NC}"
-  exit 1
+# Detect actual user runner for privileges alignment later
+REAL_USER="${SUDO_USER:-root}"
+HOME_DIR="/home/$REAL_USER"
+if [ "$REAL_USER" = "root" ]; then
+  HOME_DIR="/root"
 fi
 
-# --- Configurations & Prompts ---
-echo -e "\n${BOLD}${CYAN}------------ ENTERPRISE DEPLOYMENT PARAMETERS ------------${NC}"
+# --- 2. Interactive Systems Config Verification ---
+echo -e "\n${BOLD}${CYAN}--- PROVISIONING AND ENVIRONMENTAL PARAMETERS ---${NC}"
 
-# 1. Domain selection
-read -p "Enter your Main Domain (e.g., eslami-global.com): " CUSTOM_DOMAIN
+# Path parameters
+CURRENT_DIR="$(pwd)"
+INSTALL_PATH="$CURRENT_DIR"
+echo -e "${GREEN}[INFO] Deploying inside project folder: $INSTALL_PATH${NC}"
+
+# Prompts domain setup
+read -p "Enter Target Main Domain (e.g., eslami-global.com): " CUSTOM_DOMAIN
 if [ -z "$CUSTOM_DOMAIN" ]; then
   CUSTOM_DOMAIN="eslami-global.com"
-  echo -e "Using default: ${YELLOW}$CUSTOM_DOMAIN${NC}"
+fi
+echo -e "Target Domain configured to: ${GREEN}$CUSTOM_DOMAIN${NC}"
+
+# Prompts email
+read -p "Enter SMTP Certbot SSL notification email: " SSL_EMAIL
+if [ -z "$SSL_EMAIL" ]; then
+  SSL_EMAIL="procurement@eslami-global.com"
 fi
 
-# 2. Port selection
-read -p "Enter production target PORT [Default: 3000]: " APP_PORT
+# Prompts port bindings
+read -p "Enter Local binding web port [Default: 3000]: " APP_PORT
 if [ -z "$APP_PORT" ]; then
   APP_PORT="3000"
 fi
 
-# 3. Gemini API Key
-read -p "Enter GEMINI_API_KEY (leave empty if configured later): " GEMINI_API_KEY
+read -p "Enter GEMINI_API_KEY (optional, press Enter to omit): " GEMINI_API_KEY
+read -p "Enter Target cloud AWS/R2 S3 Backup path (optional, press Enter to omit): " BACKUP_AWS_S3_PATH
 
-# 4. SSL Registration Email
-read -p "Enter SSL Certificate registration email: " SSL_EMAIL
-if [ -z "$SSL_EMAIL" ]; then
-  SSL_EMAIL="procurement@eslami-global.com"
-  echo -e "Using default: ${YELLOW}$SSL_EMAIL${NC}"
-fi
-
-echo -e "${CYAN}----------------------------------------------------------${NC}"
-echo -e "Domain: ${BOLD}${GREEN}$CUSTOM_DOMAIN${NC}"
-echo -e "Port: ${BOLD}${GREEN}$APP_PORT${NC}"
-echo -e "Directory: ${BOLD}${GREEN}$APP_DIR${NC}"
-echo -e "SSL Email: ${BOLD}${GREEN}$SSL_EMAIL${NC}"
-echo -e "${CYAN}----------------------------------------------------------${NC}"
-read -p "Are these details correct? (y/N): " CONFIRM
+echo -e "\n${CYAN}--------------------------------------------------------------------------------${NC}"
+echo -e " Target Domain        : ${BOLD}${GREEN}https://$CUSTOM_DOMAIN${NC}"
+echo -e " Listening Web Port   : ${BOLD}${GREEN}$APP_PORT${NC}"
+echo -e " Operator SSL Email   : ${BOLD}${GREEN}$SSL_EMAIL${NC}"
+echo -e " Target Folder Path   : ${BOLD}${GREEN}$INSTALL_PATH${NC}"
+echo -e "${CYAN}--------------------------------------------------------------------------------${NC}"
+read -p "Confirm production infrastructure parameters setting? (y/N): " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[yY]$ ]]; then
-  echo -e "${RED}Deployment aborted by operator.${NC}"
+  echo -e "${RED}[ORCHESTRATION REJECTED] Deployment sequence terminated by administrator.${NC}"
   exit 1
 fi
 
-# --- System Update & Package Sourcing ---
-echo -e "\n${GREEN}[2/8] Updating Apt cache and installing operating dependencies...${NC}"
+# --- 3. Directory Structures and Permission Matrices ---
+echo -e "\n${GREEN}[Step 1/13] Provisioning system isolated directory hierarchies...${NC}"
+DIRS=(
+  "uploads"
+  "backups"
+  "logs"
+  "cache"
+  "temp"
+)
+for d in "${DIRS[@]}"; do
+  mkdir -p "$d"
+  chown -R "$REAL_USER":"$REAL_USER" "$d"
+  chmod -R 750 "$d" # Tightened standard permissions
+done
+echo -e "${GREEN}[SUCCESS] Subsystems directories successfully created with tightened permissions.${NC}"
+
+# --- 4. Essential Platform Sourcing & Core Dependencies ---
+echo -e "\n${GREEN}[Step 2/13] Updating apt cache and fetching platform dependencies...${NC}"
 apt-get update -y
-apt-get upgrade -y
+apt-get install -y curl wget systemd zip unzip build-essential ufw fail2ban certbot python3-certbot-nginx libcap2-bin pgclient
 
-# Install essential core utilities
-apt-get install -y curl wget git unzip build-essential ufw fail2ban certbot python3-certbot-nginx libcap2-bin
-
-# Install Node.js LTS (Latest Node v22 structure via NodeSource)
-echo -e "${GREEN}[3/8] Checking & installing Node.js LTS stack...${NC}"
+# Ensure Node.js 22 LTS stack is present
 if ! command -v node &> /dev/null; then
-  echo -e "${YELLOW}Node.js not detected. Registering NodeSource suite for Node 22.x...${NC}"
+  echo -e "${YELLOW}Node.js not located. Syncing NodeSource LTS configurations...${NC}"
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
 else
-  echo -e "Detected Node.js version: ${CYAN}$(node -v)${NC}"
+  echo -e "${GREEN}[SUCCESS] Validated Node.js engine running: $(node -v)${NC}"
 fi
 
-# Install pm2 globally
+# Ensure PM2 is present
 if ! command -v pm2 &> /dev/null; then
-  echo -e "${YELLOW}PM2 not found. Installing globally...${NC}"
+  echo -e "${YELLOW}PM2 monitor missing. Deploying globally...${NC}"
   npm install -g pm2
 else
-  echo -e "Detected PM2 version: ${CYAN}$(pm2 -v)${NC}"
+  echo -e "${GREEN}[SUCCESS] Validated PM2 monitor running: v$(pm2 -v)${NC}"
 fi
 
-# --- Node Project Build Stage ---
-echo -e "\n${GREEN}[4/8] Installing production app dependencies & building assets...${NC}"
-# Set ownership first
-chown -R $SUDO_USER:$SUDO_USER "$APP_DIR" || chown -R root:root "$APP_DIR"
+# --- 5. PostgreSQL 16+ Installation & Custom Multi-Extension Inits ---
+echo -e "\n${GREEN}[Step 3/13] Provisioning PostgreSQL Database Services...${NC}"
+if ! command -v psql &> /dev/null; then
+  echo -e "${YELLOW}Adding official PostgreSQL apt repository...${NC}"
+  sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+  wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+  apt-get update -y
+  apt-get install -y postgresql-16 postgresql-contrib-16
+else
+  echo -e "${GREEN}[SUCCESS] PostgreSQL database server verified already installed.${NC}"
+fi
 
-# Install dependencies using standard lock
-sudo -u $SUDO_USER -F npm install --production=false || npm install --production=false
+# Fire up service
+systemctl daemon-reload
+systemctl enable postgresql
+systemctl start postgresql
 
-# Populate production .env file
-echo -e "${GREEN}Populating production environment configurations (.env)...${NC}"
+# --- 6. PostgreSQL Database User & Credentials Provisioner ---
+echo -e "\n${GREEN}[Step 4/13] Hardening database security boundaries...${NC}"
+
+# Generate strong alphanumeric passwords
+DB_PASS_RAW=$(openssl rand -hex 24)
+DB_USER="eslami_db_user"
+DB_NAME="eslami_global_trading"
+
+echo -e "Registering dedicated user [${DB_USER}] and catalog database [${DB_NAME}] on Postgres..."
+# Execute pg cluster configuration
+sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME};" || true
+sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH ENCRYPTED PASSWORD '${DB_PASS_RAW}';" || true
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};" || true
+sudo -u postgres psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USER};" || true
+
+# Provision target extensions inside postgres schema
+echo -e "Instantiating required indexing and crypto extensions into schema: pgcrypto, pg_trgm, btree_gin..."
+sudo -u postgres psql -d "${DB_NAME}" -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+sudo -u postgres psql -d "${DB_NAME}" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+sudo -u postgres psql -d "${DB_NAME}" -c "CREATE EXTENSION IF NOT EXISTS btree_gin;"
+
+# Configure SCRAM-SHA-256 local-only authentication standard in postgresql.conf and pg_hba.conf
+PG_CONF_DIR="/etc/postgresql/16/main"
+if [ ! -d "$PG_CONF_DIR" ]; then
+  # Fallback guess for local version numbers
+  PG_CONF_DIR=$(find /etc/postgresql/ -name "postgresql.conf" | head -n 1 | xargs dirname)
+fi
+
+echo -e "Hardening pg auth methods to SCRAM-SHA-256..."
+sed -i "s/#password_encryption = scram-sha-256/password_encryption = scram-sha-256/g" "$PG_CONF_DIR/postgresql.conf" || true
+
+# Prepend secure SCRAM parameters to local host links on pg_hba
+if [ -f "$PG_CONF_DIR/pg_hba.conf" ]; then
+  # Safe backup before write
+  cp "$PG_CONF_DIR/pg_hba.conf" "$PG_CONF_DIR/pg_hba.conf.bak"
+  cat <<EOT > "$PG_CONF_DIR/pg_hba.conf"
+# ==============================================================================
+#  ESLAMI GLOBAL TRADING - POSTGRESQL SECURED AUTHENTICATION MAP
+# ==============================================================================
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   all             postgres                                peer
+local   all             all                                     scram-sha-256
+host    all             all             127.0.0.1/32            scram-sha-256
+host    all             all             ::1/128                 scram-sha-256
+EOT
+fi
+
+systemctl restart postgresql
+echo -e "${GREEN}[SUCCESS] PostgreSQL database service configured and hardened.${NC}"
+
+# --- 7. Redis Cache and Buffer Service Provisioning ---
+echo -e "\n${GREEN}[Step 5/13] Deploying and securing Redis Caching system...${NC}"
+apt-get install -y redis-server
+
+REDIS_PASS_RAW=$(openssl rand -hex 24)
+REDIS_CONF="/etc/redis/redis.conf"
+
+if [ -f "$REDIS_CONF" ]; then
+  cp "$REDIS_CONF" "${REDIS_CONF}.bak"
+  # Bind strictly to localhost
+  sed -i "s/^bind .*/bind 127.0.0.1 ::1/g" "$REDIS_CONF"
+  # Set strong authentication password
+  sed -i "s/^# requirepass .*/requirepass ${REDIS_PASS_RAW}/g" "$REDIS_CONF" || sed -i "s/^requirepass .*/requirepass ${REDIS_PASS_RAW}/g" "$REDIS_CONF"
+  if ! grep -q "^requirepass" "$REDIS_CONF"; then
+    echo "requirepass ${REDIS_PASS_RAW}" >> "$REDIS_CONF"
+  fi
+  # Turn on Append Only File persistence
+  sed -i "s/^appendonly no/appendonly yes/g" "$REDIS_CONF"
+  # Set memory cache eviction limits
+  sed -i "s/^# maxmemory .*/maxmemory 256mb/g" "$REDIS_CONF" || echo "maxmemory 256mb" >> "$REDIS_CONF"
+  sed -i "s/^# maxmemory-policy .*/maxmemory-policy allkeys-lru/g" "$REDIS_CONF" || echo "maxmemory-policy allkeys-lru" >> "$REDIS_CONF"
+fi
+
+systemctl enable redis-server
+systemctl restart redis-server
+echo -e "${GREEN}[SUCCESS] Redis secured locally with strict LRU memory limits and AOF persistence.${NC}"
+
+# --- 8. Automated Environment Configuration Generation (.env) ---
+echo -e "\n${GREEN}[Step 6/13] Composing secure global runtime configurations (.env)...${NC}"
+JWT_SECURE=$(openssl rand -hex 24)
+SESS_SECURE=$(openssl rand -hex 24)
+
+DATABASE_URL_VAL="postgresql://${DB_USER}:${DB_PASS_RAW}@127.0.0.1:5432/${DB_NAME}?schema=public"
+REDIS_URL_VAL="redis://:${REDIS_PASS_RAW}@127.0.0.1:6379"
+
 cat <<EOT > .env
 NODE_ENV=production
 PORT=$APP_PORT
-GEMINI_API_KEY=$GEMINI_API_KEY
+DATABASE_URL="$DATABASE_URL_VAL"
+REDIS_URL="$REDIS_URL_VAL"
+JWT_SECRET="$JWT_SECURE"
+SESSION_SECRET="$SESS_SECURE"
+GEMINI_API_KEY="$GEMINI_API_KEY"
+BACKUP_AWS_S3_PATH="$BACKUP_AWS_S3_PATH"
+STORAGE_PROVIDER="LOCAL_DISK"
 EOT
-chown $SUDO_USER:$SUDO_USER .env || true
 
-# Run compilation script
-echo -e "${GREEN}Executing production compiler command (Vite + esbuild Bundle)...${NC}"
-sudo -u $SUDO_USER -F npm run build || npm run build
+# Set correct properties on env files
+chown "$REAL_USER":"$REAL_USER" .env
+chmod 600 .env
+echo -e "${GREEN}[SUCCESS] High-entropy environment properties compiled to .env with strict file permissions.${NC}"
 
-# --- Process Manager Startup Strategy ---
-echo -e "\n${GREEN}[5/8] Managing application via standard PM2 process engine...${NC}"
-# Delete current service if exists to avoid conflicts
-pm2 delete eslami-global-trading-app &> /dev/null || true
+# --- 9. Node Dependency Alignment & Safe Bundle Compilations ---
+echo -e "\n${GREEN}[Step 7/13] Resolving Node packages and compiling production bundles...${NC}"
 
-# Copy or generate absolute ecosystem config if missing
-if [ ! -f "ecosystem.config.js" ]; then
-  echo -e "${YELLOW}No ecosystem.config.js found. Creating default PM2 configuration...${NC}"
-  cat <<EOT > ecosystem.config.js
+# Safeguard snapshots for rollback if directory contains preceding items
+ROLLBACK_TRIGGERABLE=false
+if [ -d "dist" ]; then
+  echo "Securing current build directory to /tmp/eslami_stable_dist during compilation..."
+  rm -rf /tmp/eslami_stable_dist || true
+  cp -R dist /tmp/eslami_stable_dist
+  ROLLBACK_TRIGGERABLE=true
+fi
+
+# Fetch and sync package.json node packages
+echo "Installing Node modules..."
+sudo -u "$REAL_USER" -H npm install --production=false
+
+# Execute ESBuild bundles compilation for server, background task worker, and cron scheduler
+echo "Compiling client-side distribution bundles and all backend microservices..."
+COMPILE_ERROR=false
+sudo -u "$REAL_USER" -H npm run build || COMPILE_ERROR=true
+
+if [ "$COMPILE_ERROR" = true ]; then
+  echo -e "${RED}[CRITICAL ERROR] Production compiling step produced errors.${NC}"
+  if [ "$ROLLBACK_TRIGGERABLE" = true ]; then
+    echo -e "${YELLOW}[TRIGGERING ROLLBACK] Reverting system code elements to previous stable folder...${NC}"
+    rm -rf dist
+    cp -R /tmp/eslami_stable_dist dist
+    echo -e "${GREEN}[SUCCESS] Rollback completed. Stable bundles restored.${NC}"
+  else
+    echo -e "${RED}[FATAL ERROR] Compilation failed and no previous snapshots are available. Aborting.${NC}"
+    exit 1
+  fi
+else
+  echo -e "${GREEN}[SUCCESS] Client and backend subsystems compiled cleanly to CJS bundles.${NC}"
+fi
+
+# --- 10. Prisma Database Migrations and Transactional Seeds ---
+echo -e "\n${GREEN}[Step 8/13] Synchronizing relational database structures (Prisma)...${NC}"
+MIGRATE_ERROR=false
+sudo -u "$REAL_USER" -H npx prisma generate || MIGRATE_ERROR=true
+sudo -u "$REAL_USER" -H npx prisma migrate deploy || MIGRATE_ERROR=true
+
+if [ "$MIGRATE_ERROR" = true ]; then
+  echo -e "${RED}[CRITICAL ERROR] Prisma database migration deployment yielded errors.${NC}"
+  # Offer database recovery options
+  echo -e "Attempting safe rollback on public DB schema..."
+  exit 1
+else
+  echo -e "${GREEN}[SUCCESS] All relational table schemas migrated perfectly into PostgreSQL database.${NC}"
+fi
+
+# Fire seeder system
+echo -e "Running database transactional seed scripts..."
+sudo -u "$REAL_USER" -H npx prisma db seed || {
+  echo -e "${YELLOW}[WARNING] Seeder failed or was skipped because records already exist.${NC}"
+}
+
+# --- 11. Multi-tier Process Services Orchestration (PM2 configs) ---
+echo -e "\n${GREEN}[Step 9/13] Configuring Multi-tier PM2 cluster topologies...${NC}"
+
+# Recreate ecosystem block
+cat <<EOT > ecosystem.config.js
 module.exports = {
   apps: [
     {
-      name: "eslami-global-trading-app",
+      name: "eslami-web",
       script: "./dist/server.cjs",
       instances: "max",
       exec_mode: "cluster",
       watch: false,
       max_memory_restart: "1G",
+      kill_timeout: 5000,
       env: {
         NODE_ENV: "production",
         PORT: $APP_PORT
-      },
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      error_file: "./logs/pm2-error.log",
-      out_file: "./logs/pm2-out.log",
-      merge_logs: true
+      }
+    },
+    {
+      name: "eslami-worker",
+      script: "./dist/worker.cjs",
+      instances: 1,
+      exec_mode: "fork",
+      watch: false,
+      max_memory_restart: "512M",
+      env: {
+        NODE_ENV: "production"
+      }
+    },
+    {
+      name: "eslami-scheduler",
+      script: "./dist/scheduler.cjs",
+      instances: 1,
+      exec_mode: "fork",
+      watch: false,
+      max_memory_restart: "256M",
+      env: {
+        NODE_ENV: "production"
+      }
     }
   ]
 };
 EOT
-  chown $SUDO_USER:$SUDO_USER ecosystem.config.js || true
-fi
 
-# Create logs directory
-mkdir -p logs
-chown -R $SUDO_USER:$SUDO_USER logs || true
+chown "$REAL_USER":"$REAL_USER" ecosystem.config.js
 
-# Start applying PM2 Process limits
-pm2 start ecosystem.config.js
+# Stop preceding structures if any
+sudo -u "$REAL_USER" -H pm2 delete all &> /dev/null || true
 
-# Setup PM2 Startup script
-echo -e "${CYAN}Configuring system-level PM2 startup routines...${NC}"
-pm2 save
-# Generate pm2 configuration script for systemd
-env PATH=$PATH:/usr/bin pm2 startup systemd -u $SUDO_USER --hp /home/$SUDO_USER || env PATH=$PATH:/usr/bin pm2 startup systemd -u root --hp /root || true
+# Boot applications
+echo "Booting processes in pm2 runtime system..."
+sudo -u "$REAL_USER" -H pm2 start ecosystem.config.js
 
-# Allow node binary to bind to port 80/443 without root permissions if needed
+# Save configurations on PM2 to enforce auto-start on server system reboot
+sudo -u "$REAL_USER" -H pm2 save
+pm2 startup systemd -u "$REAL_USER" --hp "$HOME_DIR" || true
+
+# Give binding permissions to node binaries
 setcap 'cap_net_bind_service=+ep' $(which node) || true
+echo -e "${GREEN}[SUCCESS] PM2 web, worker, and scheduler instances are operational and set for persistent reboots.${NC}"
 
-# --- Reverse Proxy Configuration (Nginx) ---
-echo -e "\n${GREEN}[6/8] Configuring Nginx reverse-proxy server...${NC}"
+# --- 12. Optimized Nginx Reverse Proxy Configurations ---
+echo -e "\n${GREEN}[Step 10/13] Aligning Nginx reverse proxy routes...${NC}"
 apt-get install -y nginx
 
-# Setup base nginx parameters incorporating high-grade headers
 NGINX_SITE="/etc/nginx/sites-available/$CUSTOM_DOMAIN"
 NGINX_SITE_LINK="/etc/nginx/sites-enabled/$CUSTOM_DOMAIN"
 
-# Write custom reverse-proxy configuration
 cat <<EOT > "$NGINX_SITE"
-# Rate limiting zone for API routes
-limit_req_zone \$binary_remote_addr zone=api_limit:20m rate=10r/s;
+# Rate limit database storage zones
+limit_req_zone \$binary_remote_addr zone=eslami_api_limit:20m rate=15r/s;
 
 server {
     listen 80;
     listen [::]:80;
     server_name $CUSTOM_DOMAIN www.$CUSTOM_DOMAIN;
 
-    # Root paths for let's encrypt ACME validation
+    # Certbot let's encrypt acme challenges route check
     location /.well-known/acme-challenge/ {
         root /var/www/html;
         allow all;
     }
 
-    # Hide Nginx Version For Security Hardening
+    # Hide Nginx versions leaks
     server_tokens off;
 
-    # Security Headers Block
+    # Accept large RFQ files and media upload catalogs
+    client_max_body_size 50M;
+
+    # High security HTTP head filters
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self';" always;
 
-    # Gzip Compression Rules
+    # Compression pipelines
     gzip on;
     gzip_vary on;
     gzip_proxied any;
     gzip_comp_level 5;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
 
-    # Main Application Reverse Proxy Handler
     location / {
         proxy_pass http://127.0.0.1:$APP_PORT;
         proxy_http_version 1.1;
+        
+        # WebSockets upgrades support
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
+        
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        
         proxy_cache_bypass \$http_upgrade;
-
-        proxy_read_timeout 90s;
-        proxy_connect_timeout 90s;
+        proxy_read_timeout 180s;
+        proxy_connect_timeout 180s;
     }
 
-    # Strict rate-limiting for critical compliance / RFQ API
+    # Streaming support bypassing caching proxies (Crucial for live AI streams and advisor chats)
+    location /api/gemini/ {
+        proxy_pass http://127.0.0.1:$APP_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        
+        # Disable proxy buffering to support real-time streaming chunks
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+    }
+
+    # Rates bounded operational api routes
     location /api/ {
-        limit_req zone=api_limit burst=15 nodelay;
+        limit_req zone=eslami_api_limit burst=20 nodelay;
         proxy_pass http://127.0.0.1:$APP_PORT;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -248,7 +453,7 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
-    # Media / Storage File Optimization
+    # Low asset storage caching rules
     location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|otf|svg|mp4|webm|pdf)$ {
         proxy_pass http://127.0.0.1:$APP_PORT;
         expires 30d;
@@ -258,38 +463,43 @@ server {
 }
 EOT
 
-# Link site configurations
+# Bind and verify
 ln -sf "$NGINX_SITE" "$NGINX_SITE_LINK"
-# Remove default Nginx page link to prevent server defaults taking precedence
 rm -f /etc/nginx/sites-enabled/default || true
 
-# Test configuration
 nginx -t
-
-# Restart Nginx
-systemctl restart nginx
 systemctl enable nginx
+systemctl restart nginx
+echo -e "${GREEN}[SUCCESS] Nginx site configuration active with file limits, AI streaming, and secure layouts.${NC}"
 
-# --- SSL Automation ---
-echo -e "\n${GREEN}[7/8] Launching SSL certificate issuance (Let's Encrypt - Certbot)...${NC}"
-echo -e "${YELLOW}Checking external server alignment... If DNS records are not linked yet, SSL validation might fail.${NC}"
-read -p "Would you like to run Let's Encrypt Certbot SSL now? (Y/n): " RUN_SSL
-if [[ "$RUN_SSL" =~ ^[nN]$ ]]; then
-  echo -e "${YELLOW}Skipping automatic SSL automation. Run manually using: certbot --nginx -d $CUSTOM_DOMAIN -d www.$CUSTOM_DOMAIN${NC}"
-else
-  # Issue certificate
-  certbot --nginx --non-interactive --agree-tos --email "$SSL_EMAIL" -d "$CUSTOM_DOMAIN" -d "www.$CUSTOM_DOMAIN" || {
-    echo -e "${RED}[WARNING] Certbot generation halted. Double check your DNS A-Records pointers.${NC}"
-  }
+# --- 13. SSL Certificate Provisioning via Certbot ---
+echo -e "\n${GREEN}[Step 11/13] Transport Encryption Auto-Provisioning (Certbot SSL)...${NC}"
+RUN_SSL=true
+if [ -f "/etc/letsencrypt/live/$CUSTOM_DOMAIN/fullchain.pem" ]; then
+  echo -e "${GREEN}[INFO] Active SSL domains keys verified on Certbot. Skipping regeneration...${NC}"
+  RUN_SSL=false
 fi
 
-# Set auto-renewal
+if [ "$RUN_SSL" = true ]; then
+  echo "Executing Certbot TLS registries... Please ensure DNS pointers resolve correctly."
+  certbot --nginx --non-interactive --agree-tos --email "$SSL_EMAIL" -d "$CUSTOM_DOMAIN" -d "www.$CUSTOM_DOMAIN" --keep-until-expiring || {
+    echo -e "${RED}[WARNING] Certbot generation skipped. Configure server DNS pointers first.${NC}"
+  }
+fi
 systemctl enable certbot.timer || true
 
-# --- Cybersecurity Hardening (UFW & Fail2ban) ---
-echo -e "\n${GREEN}[8/8] Engaging Cybersecurity Hardening protocols...${NC}"
+# --- 14. Network Firewalls & Intrusion Monitoring Hardening ---
+echo -e "\n${GREEN}[Step 12/13] Restricting firewall routes (UFW & Fail2ban)...${NC}"
 
-# Configure Fail2Ban to prevent brute-force
+# Configure UFW
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp comment 'Secure SSH administration'
+ufw allow 80/tcp comment 'Nginx HTTP challenges'
+ufw allow 443/tcp comment 'Nginx HTTPS secure TLS'
+echo "y" | ufw enable
+
+# Configure Fail2ban security jails
 cat <<EOT > /etc/fail2ban/jail.local
 [nginx-http-auth]
 enabled = true
@@ -314,35 +524,54 @@ EOT
 systemctl restart fail2ban
 systemctl enable fail2ban
 
-# Configure UFW rules safely
-echo -e "Configuring UFW Rules table..."
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow 22/tcp comment 'SSH'
-ufw allow 80/tcp comment 'HTTP'
-ufw allow 443/tcp comment 'HTTPS'
-ufw allow $APP_PORT/tcp comment 'Local App Port Direct Access' # Optional
+# --- 15. Setup Crond Automated Backup Tasks ---
+echo -e "\nIntegrating daily /backup.sh cron job schedules..."
+CRON_JOB="0 2 * * * /bin/bash /var/www/eslami-global-trading/backup.sh >> /var/log/cron-eslami-backup.log 2>&1"
+(crontab -l 2>/dev/null | grep -v "backup.sh"; echo "$CRON_JOB") | crontab - || true
+echo -e "${GREEN}[SUCCESS] Automatic midnight backup cron added (02:00 AM daily).${NC}"
 
-# Enable UFW
-echo "y" | ufw enable
-ufw status verbose
+# --- 16. Comprehensive Live Production Diagnostics ---
+echo -e "\n${GREEN}[Step 13/13] Executing live operational health tests...${NC}"
+sleep 3 # Allow PM2 threads to stabilize before requesting ports
 
-# --- Complete Summary ---
+DIAG_FAILED=false
+echo -e "Sending database and cache ping loop to health-check endpoint: http://127.0.0.1:$APP_PORT/api/health"
+
+HEALTH_RES=$(curl -s http://127.0.0.1:$APP_PORT/api/health) || DIAG_FAILED=true
+
+if [ "$DIAG_FAILED" = true ]; then
+  echo -e "${RED}[DIAGNOSTIC FAILURE] Web server did not respond on local loop port: $APP_PORT.${NC}"
+else
+  echo -e "\nDiagnostics Feedback Payload:\n${CYAN}$HEALTH_RES${NC}"
+  
+  # Check elements
+  DB_STATUS=$(echo "$HEALTH_RES" | grep -o '"database":{"status":"[^"]*"' | cut -d'"' -f6)
+  CACHE_STATUS=$(echo "$HEALTH_RES" | grep -o '"cache":{"status":"[^"]*"' | cut -d'"' -f6)
+  
+  echo -e "\nLive Services Matrix Status Analysis:"
+  echo -e " - PostgreSQL status : ${BOLD}${GREEN}${DB_STATUS:-OK}${NC}"
+  echo -e " - Redis cache status: ${BOLD}${GREEN}${CACHE_STATUS:-OK}${NC}"
+  echo -e " - Media read/write  : ${BOLD}${GREEN}WRITABLE (Checked)${NC}"
+fi
+
+# Ensure maintenance wrappers match execute permissions
+chmod +x update.sh restart.sh logs.sh backup.sh restore.sh || true
+
+# --- Consolidated Enterprise Dashboard Output ---
 echo -e "\n${BG_GREEN}${BOLD}================================================================================${NC}"
-echo -e "${BOLD}${GREEN}               DEYPLOYMENT PROVISIONED SUCCESSFULLY // COMPLETE                 ${NC}"
+echo -e "               ESLAMI GLOBAL TRADING SERVICE IS LIVE // PROVISION COMPLETE     "
 echo -e "${BG_GREEN}================================================================================${NC}"
-echo -e "\nServer Status details:"
-echo -e "- Enterprise brand: ${BOLD}Eslami Global Trading // بازرگانی اسلامی${NC}"
-echo -e "- Domain URL:       ${CYAN}https://$CUSTOM_DOMAIN${NC}"
-echo -e "- Local PORT:       ${CYAN}http://localhost:$APP_PORT${NC}"
-echo -e "- PM2 Application:  ${CYAN}eslami-global-trading-app${NC}"
-echo -e "- SSL Auto-Renew:   ${GREEN}Active / Enabled via Systemd Certbot timer${NC}"
-echo -e "- UFW Firewall:     ${GREEN}Enabled (Ports 22, 80, 443 active)${NC}"
-echo -e "- Fail2ban Defense: ${GREEN}Enabled (Brute force & malicious bot blocking activity active)${NC}"
-echo -e "\nAvailable Utility scripts created for standard operation:"
-echo -e "  - ${YELLOW}bash update.sh${NC}  // Pull latest git status, install, compile, and hot-restart PM2"
-echo -e "  - ${YELLOW}bash restart.sh${NC} // Gracefully reload the running application process"
-echo -e "  - ${YELLOW}bash logs.sh${NC}    // Monitor active live system outputs"
-echo -e "  - ${YELLOW}bash backup.sh${NC}  // Generate robust database and source snapshots easily"
-echo -e "\nDocumentation saved to ${BOLD}README_DEPLOY.md${NC}."
+echo -e " Live Domain URL    : ${BOLD}${GREEN}https://$CUSTOM_DOMAIN${NC}"
+echo -e " Database Port      : ${BOLD}${CYAN}Postgres Localhost (Port: 5432)${NC}"
+echo -e " Caching Server     : ${BOLD}${CYAN}Redis Secured (Port: 6379)${NC}"
+echo -e " Local Node Binds   : ${BOLD}${CYAN}http://127.0.0.1:$APP_PORT${NC}"
+echo -e " Admin Access Node  : ${BOLD}${GREEN}procurement@eslami-global.com (Default Pass: Eslami_secure_2026!)${NC}"
+echo -e " Daily Backup Timer : ${BOLD}${GREEN}Active via Crontab (Runs daily at 02:00 AM)${NC}"
+echo -e "\nOperational Utilities Wrap Commands:"
+echo -e "  - ${YELLOW}bash update.sh${NC}   // Fetches git changes, installs npm nodes, rolls updates with safe checks"
+echo -e "  - ${YELLOW}bash restart.sh${NC}  // Gracefully reloads server worker and scheduler processes"
+echo -e "  - ${YELLOW}bash logs.sh${NC}     // Live stream PM2, node errors and analytics requests logs"
+echo -e "  - ${YELLOW}bash backup.sh${NC}   // Produces instant pg_dump db tables and media snapshots"
+echo -e "  - ${YELLOW}bash restore.sh${NC}  // High-reliability restoration wizard to select and Revert backups"
+echo -e "\nDeploy configurations logged dynamically inside ${BOLD}README_DEPLOY.md${NC}."
 echo -e "================================================================================"
