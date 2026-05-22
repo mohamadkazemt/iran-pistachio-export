@@ -36,23 +36,70 @@ fi
 # ==============================================================================
 #  ENTERPRISE PROVISIONER INITIAL PROPERTIES (Strict-Mode safe)
 # ==============================================================================
-CUSTOM_DOMAIN="eslami-global.com"
-LETSENCRYPT_EMAIL="procurement@eslami-global.com"
-GITHUB_REPO_URL="https://github.com/mohamadkazemt/iran-pistachio-export.git"
-GIT_BRANCH="main"
-INSTALL_PATH="/var/www/eslami-global-trading"
-DB_NAME="eslami_trade"
-DB_USER="eslami_admin"
-DB_PASS_RAW=""
-ENABLE_SSL="y"
-ENABLE_REDIS="y"
-ENABLE_BACKUPS="y"
-ADMIN_USER="admin"
-ADMIN_PASS=""
-APP_PORT="3000"
-GEMINI_API_KEY=""
-BACKUP_AWS_S3_PATH=""
-SSL_EMAIL="$LETSENCRYPT_EMAIL"
+# Dynamic assignment: check environment variables first
+CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-}"
+LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-procurement@eslami-global.com}"
+GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.com/mohamadkazemt/iran-pistachio-export.git}"
+GIT_BRANCH="${GIT_BRANCH:-main}"
+INSTALL_PATH="${INSTALL_PATH:-/var/www/eslami-global-trading}"
+DB_NAME="${DB_NAME:-eslami_trade}"
+DB_USER="${DB_USER:-eslami_admin}"
+DB_PASS_RAW="${DB_PASS_RAW:-}"
+ENABLE_SSL="${ENABLE_SSL:-y}"
+ENABLE_REDIS="${ENABLE_REDIS:-y}"
+ENABLE_BACKUPS="${ENABLE_BACKUPS:-y}"
+ADMIN_USER="${ADMIN_USER:-admin}"
+ADMIN_PASS="${ADMIN_PASS:-}"
+APP_PORT="${APP_PORT:-3000}"
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+BACKUP_AWS_S3_PATH="${BACKUP_AWS_S3_PATH:-}"
+SSL_EMAIL="${SSL_EMAIL:-}"
+
+# Strict command-line argument parser to support options
+# Example usage: ./install.sh --domain mydomain.com --email web@mydomain.com
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--domain)
+      CUSTOM_DOMAIN="$2"
+      shift 2
+      ;;
+    -e|--email)
+      LETSENCRYPT_EMAIL="$2"
+      SSL_EMAIL="$2"
+      shift 2
+      ;;
+    -b|--branch)
+      GIT_BRANCH="$2"
+      shift 2
+      ;;
+    -p|--path)
+      INSTALL_PATH="$2"
+      shift 2
+      ;;
+    --db-pass)
+      DB_PASS_RAW="$2"
+      shift 2
+      ;;
+    --admin-pass)
+      ADMIN_PASS="$2"
+      shift 2
+      ;;
+    *)
+      # Unrecognized parameter, skip it
+      shift
+      ;;
+  esac
+done
+
+# Synchronize email references
+if [[ -z "$SSL_EMAIL" ]]; then
+  SSL_EMAIL="$LETSENCRYPT_EMAIL"
+fi
+
+# Fallback defaults if not set via environment or command-line arguments
+if [[ -z "$CUSTOM_DOMAIN" ]]; then
+  CUSTOM_DOMAIN="eslami-global.com"
+fi
 
 TEMP_DIR="${CURRENT_DIR}/temp/install_workspace"
 
@@ -225,6 +272,11 @@ preflight_validation
 
 # --- 3. Interactive Systems Config Wizard ---
 start_interactive_wizard() {
+  # Attempt to attach standard input to the controlling TTY of the session to allow interactive prompts if stdout/stdin are redirected or piped
+  if [[ ! -t 0 ]] && [[ -c /dev/tty ]]; then
+    exec < /dev/tty
+  fi
+
   if [[ ! -t 0 ]]; then
     echo -e "\n${YELLOW}[INFO] Unattended/Non-interactive shell detected. Skipping wizard, using production defaults.${NC}"
     # If DB_PASS_RAW remains empty, generate one
