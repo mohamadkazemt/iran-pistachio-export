@@ -1,0 +1,6 @@
+{
+  "name": "AuraLux Global",
+  "description": "Premium international export catalog, AI-assisted trade intelligence, and global lead generation hub.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
