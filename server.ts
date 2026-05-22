@@ -229,7 +229,7 @@ app.post("/api/rfq", (req, res) => {
     rfq: addedRfq,
     needsVerification: spamScore >= 3,
     statusMessage: spamScore >= 3 
-      ? "Quotation ingested with cautionary parameters. AuraLux Compliance Team will evaluate safety signatures." 
+      ? "Quotation ingested with cautionary parameters. Eslami Compliance Team will evaluate safety signatures." 
       : "Lead inquiry securely stored. A senior representative will contact you with an official pro-forma quote shortly."
   });
 });
@@ -253,7 +253,7 @@ app.post("/api/gemini/advisor", async (req, res) => {
     }).join("\n");
 
     const systemInstruction = `
-      You are the Elite Global Trade Advisor for AuraLux Global, a premium international exporter of luxury agricultural commodities, dry tree nuts, and advanced food logistics.
+      You are the Elite Global Trade Advisor for Eslami Global Trading, a premium international exporter of luxury agricultural commodities, dry tree nuts, and advanced food logistics.
       
       Our high-end catalog contains:
       ${productsContext}
@@ -267,7 +267,7 @@ app.post("/api/gemini/advisor", async (req, res) => {
       1. Speak in an objective, elegant, and highly professional tone suited for foreign logistics directors, gourmet purchasers, and procurement agents.
       2. Support multilingual trade: Respond elegantly in the exact language the user initiates (e.g., Arabic, Spanish, German, Mandarin, French, etc.), but use correct trade/customs vocabulary.
       3. For any inquiry regarding tariffs, customs clearance, HS codes, or container packing lists, supply precise, structured, and informative details using markdown tables or bulleted points.
-      4. Avoid stating any self-aggrandizing AI jargon. Maintain professional gravity. Do not mention that you are a model or built by Google. You are AuraLux's chief commercial intelligence engine.
+      4. Avoid stating any self-aggrandizing AI jargon. Maintain professional gravity. Do not mention that you are a model or built by Google. You are Eslami's chief commercial intelligence engine.
       5. Under no circumstances should you hallucinate speculative pricing or non-vetted products. Stick rigidly to current export items. If asked about unsupported categories, graciously explain our core focus on Pistachios, tree nuts, and premium dried agricultural exports, and offer custom sourcing consultancy.
     `;
 
@@ -637,7 +637,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[AuraLux Server] System active, listening on http://0.0.0.0:${PORT}`);
+    console.log(`[Eslami Server] System active, listening on http://0.0.0.0:${PORT}`);
   });
 }
 

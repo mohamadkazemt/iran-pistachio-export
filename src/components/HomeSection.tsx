@@ -91,7 +91,7 @@ export default function HomeSection({ setCurrentTab, onPreSelectProduct, lang, s
   const heroTag = textDict?.heroTag || "Intelligent Sovereign Exquisite Sourcing";
   const heroTitle1 = textDict?.heroTitle1 || "Pristine Purity,";
   const heroTitle2 = textDict?.heroTitle2 || "Sovereign Logistics";
-  const heroDesc = textDict?.heroDesc || "AuraLux facilities orchestrate an elite organic pipeline of premium Persian raw pistachios, exclusive tree nuts, and delicate dried fruit reserves.";
+  const heroDesc = textDict?.heroDesc || "Eslami facilities orchestrate an elite organic pipeline of premium Persian raw pistachios, exclusive tree nuts, and delicate dried fruit reserves.";
   const ctaCatalog = textDict?.ctaCatalog || "Explore Royal Reserves";
   const ctaAdvisor = textDict?.ctaAdvisor || "Aura Intelligence Desk";
   
@@ -696,7 +696,7 @@ export default function HomeSection({ setCurrentTab, onPreSelectProduct, lang, s
               </div>
               
               <blockquote className="text-xl sm:text-2xl font-display font-light uppercase tracking-wide leading-relaxed text-[#5c4a3c] italic" id="testimonial-quote">
-                "AuraLux has established our custom pistachio raw sorting pipelines with absolute fidelity. The freshness parameters are unparalleled."
+                "Eslami has established our custom pistachio raw sorting pipelines with absolute fidelity. The freshness parameters are unparalleled."
               </blockquote>
               
               <div className="w-12 h-0.5 bg-pistachio" />

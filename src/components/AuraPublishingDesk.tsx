@@ -49,7 +49,7 @@ const DEFAULT_BLOCKS: GBlock[] = [
     type: "paragraph",
     rtl: false,
     align: "left",
-    content: "AuraLux sets international milestones for agricultural exports, keeping heavy metal residuals and micro-biological contamination indices well beneath stringent EU, GCC, and North American regulatory tolerances. This dossier outlines phytosanitary protocols."
+    content: "Eslami Global Trading sets international milestones for agricultural exports, keeping heavy metal residuals and micro-biological contamination indices well beneath stringent EU, GCC, and North American regulatory tolerances. This dossier outlines phytosanitary protocols."
   },
   {
     id: "b-3",
@@ -84,7 +84,7 @@ export default function AuraPublishingDesk({
 
   // Dedicated Persian dictionary for news visual publishing / block editors
   const editorTranslations: Record<string, string> = {
-    "Aura WordPress Visual Studio": "استودیو بصری وردپرس آئورا",
+    "Eslami Publishing Studio": "استودیو بصری انتشارات اسلامی",
     "Workspace": "فضای کاری",
     "Export Product SKU": "کاتالوگ کالاهای صادراتی",
     "Market Intelligence": "گزارش بازار و هوش تجاری",
@@ -157,7 +157,7 @@ export default function AuraPublishingDesk({
     // SEO
     "Live Search Engine SEO Previewer": "پیش‌نمایش ارگانیک موتورهای جستجوی گوگل (SEO)",
     "Simulating active organic search views for this item": "بدین صورت صفحه جدید با استانداردهای گوگل رندر و نمایان می‌گردد",
-    "AuraLux Luxury Exporter": "هلدینگ تجاری بازرگانی آئورالاکس (صادرات لوکس)",
+    "Eslami Luxury Exporter": "هلدینگ تجاری بازرگانی اسلامی (صادرات لوکس)",
     "No abstract summary specified yet. Complete the synopsis in document form to build standard SEO indexing.": "متن چکیده مطالب خالی است. نگارش چکیده برای فعال شدن موتور سئو گوگل الزامی می‌باشد.",
     "Rating": "امتیاز خریداران ملل",
     "Origin": "مبدا بارگیری محموله",
@@ -233,7 +233,7 @@ export default function AuraPublishingDesk({
   
   // Dedicated Whitepaper/Reports specific extra properties
   const [reportType, setReportType] = useState<string>("Scientific Quarantine Report");
-  const [attachedPdfUrl, setAttachedPdfUrl] = useState<string>("https://ais-dev-bca34bugtnd5zc5wbzc7kl-58319881119.us-east1.run.app/quarantine_certificates_Aura_AAA.pdf");
+  const [attachedPdfUrl, setAttachedPdfUrl] = useState<string>("https://ais-dev-bca34bugtnd5zc5wbzc7kl-58319881119.us-east1.run.app/quarantine_certificates_Eslami_AAA.pdf");
   
   // Visual blocks structure state
   const [blocks, setBlocks] = useState<GBlock[]>(DEFAULT_BLOCKS);
@@ -330,7 +330,7 @@ export default function AuraPublishingDesk({
       case "attachment":
         initialBlock.content = "quarantine_verification_cert.pdf";
         initialBlock.data = {
-          url: "https://ais-dev-bca34bugtnd5zc5wbzc7kl-58319881119.us-east1.run.app/export_catalog_auralux.pdf",
+          url: "https://ais-dev-bca34bugtnd5zc5wbzc7kl-58319881119.us-east1.run.app/export_catalog_eslami.pdf",
           fileSize: "4.8 MB",
           fileType: "PDF Document"
         };
@@ -544,7 +544,7 @@ export default function AuraPublishingDesk({
           </div>
           <div>
             <h2 className="font-bold text-sm tracking-wide text-luxury-dark uppercase flex items-center gap-2">
-              <span>{t("Aura WordPress Visual Studio")}</span>
+              <span>{t("Eslami Publishing Studio")}</span>
               <span className="text-[9px] font-mono text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">PRO</span>
             </h2>
             <div className="flex items-center gap-2 text-[8.5px] text-gray-400 font-mono tracking-widest uppercase mt-0.5">
@@ -676,7 +676,7 @@ export default function AuraPublishingDesk({
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] uppercase font-mono text-gray-400 tracking-wider font-bold">{t("SEO URL Permalink Slug")}</label>
                 <div className="flex items-center bg-gray-50 border border-gray-200 px-3.5 py-1.5 rounded-xl">
-                  <span className="text-[10px] font-mono text-gray-400 truncate select-none">auralux.com/catalogs/</span>
+                  <span className="text-[10px] font-mono text-gray-400 truncate select-none">eslamiglobal.com/catalogs/</span>
                   <input
                     type="text"
                     required
@@ -1343,14 +1343,14 @@ export default function AuraPublishingDesk({
             <div className="font-sans text-xs flex justify-center py-4 bg-gray-50 rounded-2xl border border-dashed">
               <div className={`p-5 bg-white border rounded-xl shadow-xs ${seoPreviewDevice === 'mobile' ? 'max-w-[360px]' : 'w-full max-w-xl'}`}>
                 <div className="flex items-center gap-1.5 text-gray-400 text-[11px] mb-1">
-                  <span className="text-zinc-700">https://auralux.com</span>
+                  <span className="text-zinc-700">https://eslamiglobal.com</span>
                   <span>›</span>
                   <span className="text-zinc-500 font-mono truncate">{slug}</span>
                 </div>
                 
                 {/* Hyperlink */}
                 <h3 className="text-[#1a0dab] hover:underline text-base font-medium font-sans cursor-pointer leading-tight font-sans mb-1 select-none">
-                  {title} | {t("AuraLux Luxury Exporter")}
+                  {title} | {t("Eslami Luxury Exporter")}
                 </h3>
                 
                 {/* Meta Description preview */}
@@ -1455,7 +1455,7 @@ export default function AuraPublishingDesk({
                     type="text"
                     value={attachedPdfUrl}
                     onChange={(e) => setAttachedPdfUrl(e.target.value)}
-                    placeholder="https://AuraPdfLinkSource..."
+                    placeholder="https://EslamiPdfLinkSource..."
                     className="w-full pl-8 pr-3 py-2 text-[10px] font-mono border border-gray-200 outline-none rounded-xl"
                   />
                 </div>

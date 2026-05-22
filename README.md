@@ -1,6 +1,6 @@
-# AuraLux Global - Sovereign Trade, Purity & Logistics
+# Eslami Global Trading - Sovereign Trade, Purity & Logistics
 
-AuraLux Global is a premier, high-integrity international export-company portal. It is engineered from the ground up to establish trust, project luxury, and capture verified corporate buyer leads through advanced cargo RFQ wizards, trade analysis whitepapers, and a secure server-side AI-Powered Multilingual Trade Advisor.
+Eslami Global Trading is a premier, high-integrity international export-company portal. It is engineered from the ground up to establish trust, project luxury, and capture verified corporate buyer leads through advanced cargo RFQ wizards, trade analysis whitepapers, and a secure server-side AI-Powered Multilingual Trade Advisor.
 
 ---
 

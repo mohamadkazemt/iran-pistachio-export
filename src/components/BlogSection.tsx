@@ -9,7 +9,7 @@ interface BlogSectionProps {
 const DICTIONARY: Record<string, Record<string, string>> = {
   en: {
     title: "TRADE INTELLIGENCE PORTAL",
-    subtitle: "Strategic logistics insights, regulatory HS updates, and international commodities whitepapers authored by the AuraLux senior strategy board.",
+    subtitle: "Strategic logistics insights, regulatory HS updates, and international commodities whitepapers authored by the Eslami senior strategy board.",
     read: "Read Analysis Report",
     back: "Return to briefings indices",
     published: "Executive Briefing",
@@ -17,7 +17,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
   },
   es: {
     title: "PORTAL DE INTELIGENCIA DE COMERCIO",
-    subtitle: "Análisis estratégico de logística, actualizaciones de HS e informes técnicos de commodities internacionales por la junta de estrategia sénior de AuraLux.",
+    subtitle: "Análisis estratégico de logística, actualizaciones de HS e informes técnicos de commodities internacionales por la junta de estrategia sénior de Eslami.",
     read: "Leer artículo de análisis",
     back: "Volver al catálogo de informes",
     published: "Boletín Ejecutivo",
@@ -25,7 +25,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
   },
   zh: {
     title: "全球贸易合规智库",
-    subtitle: "AuraLux资深战略委员会撰写的全球供应链地缘政治分析、海关关税编码优化及国际大宗商品技术白皮书。",
+    subtitle: "Eslami资深战略委员会撰写的全球供应链地缘政治分析、海关关税编码优化及国际大宗商品技术白皮书。",
     read: "阅读合规与风险报告",
     back: "返回智库报告目录",
     published: "首席决策简报",
@@ -33,7 +33,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
   },
   ar: {
     title: "بوابة دراسات التجارة واللوجستيات",
-    subtitle: "مؤشرات لوجستية استراتيجية، تحديثات لوائح الرمز المنسق (HS Code)، وأبحاث السلع الدولية الصادرة عن الهيئة الاستشارية العليا لـ AuraLux.",
+    subtitle: "مؤشرات لوجستية استراتيجية، تحديثات لوائح الرمز المنسق (HS Code)، وأبحاث السلع الدولية الصادرة عن الهيئة الاستشارية العليا لـ Eslami.",
     read: "قراءة التحليل الاستراتيجي للاستيراد",
     back: "العودة لقائمة الدراسات المنشورة",
     published: "إيجاز تنفيذي",
@@ -41,7 +41,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
   },
   de: {
     title: "GLOBAL TRADE INTEL-HUB",
-    subtitle: "Strategische Logistikanalysen, Regulierungsupdates zu HS-Codes und Rohstoffberichte, verfasst vom AuraLux-Aufsichtsrat.",
+    subtitle: "Strategische Logistikanalysen, Regulierungsupdates zu HS-Codes und Rohstoffberichte, verfasst vom Eslami-Aufsichtsrat.",
     read: "Analysenbericht öffnen",
     back: "Zurück zur Berichtsübersicht",
     published: "Mitteilung des Vorstands",
@@ -49,7 +49,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
   },
   fa: {
     title: "پورتال هوشمندی و ممیزی بازرگانی",
-    subtitle: "بینش‌های لجستیک استراتژیک، اطلاعات گمرکی و تخصصی کدهای تعرفه (HS)، و برگه‌های سفید تجارت بین‌الملل توسط هیئت مدیره ارشد AuraLux.",
+    subtitle: "بینش‌های لجستیک استراتژیک، اطلاعات گمرکی و تخصصی کدهای تعرفه (HS)، و برگه‌های سفید تجارت بین‌الملل توسط هیئت مدیره ارشد Eslami.",
     read: "مشاهده گزارش تحلیل و بررسی",
     back: "بازگشت به شاخص ممیزی و نشریات",
     published: "نشریه تخصصی هیئت مدیره",

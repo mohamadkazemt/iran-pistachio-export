@@ -20,7 +20,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     attach: "Upload customs specifications or phyto directives",
     submit: "Initiate verified lead clearance",
     successTitle: "Inquiry Ingestion Completed",
-    successText: "Your official request has been secured under audit signature. AuraLux logistics specialists will issue a comprehensive Pro-Forma Invoice matching your requested incoterm shortly."
+    successText: "Your official request has been secured under audit signature. Eslami logistics specialists will issue a comprehensive Pro-Forma Invoice matching your requested incoterm shortly."
   },
   es: {
     clientName: "Nombre completo del consignatario",
@@ -34,7 +34,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     attach: "Subir especificaciones de aduanas o phyto",
     submit: "Iniciar despacho verificado",
     successTitle: "Inscripción del trámite exitoso",
-    successText: "Su consulta ha sido asegurada. Los especialistas logísticos de AuraLux emitirán una Factura Pro-Forma que coincida con su incoterm solicitado en breve."
+    successText: "Su consulta ha sido asegurada. Los especialistas logísticos de Eslami emitirán una Factura Pro-Forma que coincida con su incoterm solicitado en breve."
   },
   zh: {
     clientName: "收货人全称 / 采购代表",
@@ -48,7 +48,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     attach: "上传海关申报规范或检疫指令材料",
     submit: "提交已核实货运询价清单",
     successTitle: "询价清单接收就绪",
-    successText: "您的询价已存盘至审核记录。AuraLux物流部门将遵循您要求的贸易术语(Incoterms)在短时间内为您呈报正式形式发票(Pro-Forma Invoice)。"
+    successText: "您的询价已存盘至审核记录。Eslami物流部门将遵循您要求的贸易术语(Incoterms)在短时间内为您呈报正式形式发票(Pro-Forma Invoice)。"
   },
   ar: {
     clientName: "اسم المرسل إليه بالكامل / الممثل التجاري",
@@ -62,7 +62,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     attach: "إرفاق مستندات الجمارك أو التوجيهات الفنية",
     submit: "تقديم وثيقة طلب التسعيرة الآمنة",
     successTitle: "تم استيعاب طلب التسعير بنجاح",
-    successText: "تم توثيق طلبكم رسمياً وتوفير الحماية الأمنية له. سيقوم أخصائي اللوجستيات في AuraLux بإصدار فاتورة شكلية شاملة تطابق شروط الشحن الدولية المختارة قريباً."
+    successText: "تم توثيق طلبكم رسمياً وتوفير الحماية الأمنية له. سيقوم أخصائي اللوجستيات في Eslami بإصدار فاتورة شكلية شاملة تطابق شروط الشحن الدولية المختارة قريباً."
   },
   de: {
     clientName: "Vollständiger Name des Empfängers",
@@ -76,7 +76,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     attach: "Zollspezifikationen oder EU-Richtlinien hochladen",
     submit: "Bestätigtes Anfrageverfahren einleiten",
     successTitle: "Anfrageerfassungsverfahren Erfolgreich",
-    successText: "Ihre offizielle Anfrage wurde unter Sicherheitsprüfung archiviert. AuraLux Logistik-Auditoren werden in Kürze eine Pro-Forma-Rechnung gemäß Ihren ausgewählten Incoterms ausstellen."
+    successText: "Ihre offizielle Anfrage wurde unter Sicherheitsprüfung archiviert. Eslami Logistik-Auditoren werden in Kürze eine Pro-Forma-Rechnung gemäß Ihren ausgewählten Incoterms ausstellen."
   },
   fa: {
     clientName: "نام و نام خانوادگی گیرنده",
@@ -90,7 +90,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     attach: "برگ مشخصات گمرکی یا اسناد قرنطینه دکومیانه",
     submit: "ارسال و ثبت نهایی استعلام قیمت مقتدرانه",
     successTitle: "استعلام سفارش با موفقیت ثبت شد",
-    successText: "درخواست رسمی شما تحت امضای دیجیتال ممیزی با موفقیت دریافت و بایگانی گردید. متخصصان لجستیک بین‌الملل کمپانی AuraLux به‌زودی پیش‌فاکتور رسمی منطبق با اینکوترمز انتخابی شما را صادر خواهند کرد."
+    successText: "درخواست رسمی شما تحت امضای دیجیتال ممیزی با موفقیت دریافت و بایگانی گردید. متخصصان لجستیک بین‌الملل کمپانی Eslami به‌زودی پیش‌فاکتور رسمی منطبق با اینکوترمز انتخابی شما را صادر خواهند کرد."
   }
 };
 

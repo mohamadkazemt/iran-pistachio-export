@@ -34,8 +34,8 @@ export default function App() {
     setCurrentTab("rfq");
   };
 
-  const brandName = settings?.brandName || "AuraLux Global";
-  const contactEmail = settings?.email || "procurement@auralux-global.com";
+  const brandName = settings?.brandName || (lang === "fa" ? "بازرگانی اسلامی" : "Eslami Global Trading");
+  const contactEmail = settings?.email || "procurement@eslami-global.com";
   const contactPhone = settings?.phone || "+98 21 8888 1234";
   const contactAddress = settings?.address || "Floor 14, Royal Trade Tower, Elahiyeh, Tehran, Iran";
 

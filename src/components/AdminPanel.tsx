@@ -17,7 +17,7 @@ interface AdminPanelProps {
 
 const faTranslations: Record<string, string> = {
   // Login Page
-  "Nazari Export Intranet": "اینترانت مدیریت صادرات شرکت نظری",
+  "Eslami Export Intranet": "سامانه مدیریت صادرات بازرگانی اسلامی",
   "Global Shipping Control Panel": "کنسول جامع تجارت بین‌المللی و مدیریت محموله‌ها",
   "Operator Username": "نام کاربری اپراتور",
   "Cryptographic Keypass Phrase": "گذرواژه امنیتی رمزنگاری‌شده",
@@ -189,7 +189,7 @@ export default function AdminPanel({ lang, settings, onSettingsUpdated }: AdminP
   const [analytics, setAnalytics] = useState<VisitorAnalytics[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [seo, setSeo] = useState<SEOSettings>({
-    metaTitle: "Nazari Agro | Premium Saffron & Saffron Kernel Global Exports",
+    metaTitle: "Eslami Global Trading | Premium Saffron & Saffron Kernel Global Exports",
     metaDescription: "We provide high-purity saffron and agricultural pistachio directly from harvest-vetted groves to global buyers.",
     keywords: "pistachios, export nuts, premium agricultural, bulk nuts buying",
     ogImage: "https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format",
@@ -496,7 +496,7 @@ export default function AdminPanel({ lang, settings, onSettingsUpdated }: AdminP
               <Lock className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-xl font-bold text-luxury-dark tracking-wide font-sans">
-              {t("Nazari Export Intranet")}
+              {t("Eslami Export Intranet")}
             </h1>
             <span className="text-[10px] uppercase font-mono tracking-widest text-[#81aa62] mt-1 block">
               {t("Global Shipping Control Panel")}

@@ -40,34 +40,34 @@ const CONVERSATION_SUGGESTIONS: Record<string, string[]> = {
   fa: [
     "تفاوت انتقال مسئولیت و ریسک بین اینکوترمز CIF و FOB چیست؟",
     "بررسی الزامات بازرسی SGS و صدور گواهی‌های بهداشت گیاهی صادرات پسته.",
-    "زمان تفصیلی ترانزیت و ترخیص محصولات کشاورزی AuraLux چقدر است؟",
+    "زمان تفصیلی ترانزیت و ترخیص محصولات کشاورزی Eslami چقدر است؟",
     "کد تعرفه HS و حقوق گمرکی واردات مغز پسته سبز مینیاتوری."
   ]
 };
 
 const CHAT_INTRO: Record<string, { welcome: string; advice: string }> = {
   en: {
-    welcome: "AuraLux Operations Trade IQ Desk",
+    welcome: "Eslami Global Trade IQ Desk",
     advice: "Inquire below about custom specifications compliance registers, shipping routes scheduling, certificate regulations, and immediate import tariffs."
   },
   es: {
-    welcome: "Mesa de Inteligencia Comercial AuraLux",
+    welcome: "Mesa de Inteligencia Comercial Eslami",
     advice: "Consulte sobre especificaciones técnicas, regulaciones de aduanas, rutas de transporte y aranceles de importación."
   },
   zh: {
-    welcome: "AuraLux 国际贸易合规智能服务台",
+    welcome: "Eslami 国际贸易合规智能服务台",
     advice: "在此查询产品纯度规范、海关进出口关税、植物检疫证书要求以及国际物流航线排程。"
   },
   ar: {
-    welcome: "مكتب استشارات التجارة الدولية AuraLux",
+    welcome: "مكتب استشارات التجارة الدولية Eslami",
     advice: "استفسر عن اللوائح الجمركية، جداول الشحن واللوجستيات، الفحوصات الفنية لشهادات المنشأ والمعاملات التجارية الدولية."
   },
   de: {
-    welcome: "AuraLux Handels- und Zoll-Intelligence-Desk",
+    welcome: "Eslami Handels- und Zoll-Intelligence-Desk",
     advice: "Fragen Sie nach technischen Spezifikationen, Zollbestimmungen, phytosanitären Zeugnissen oder Incoterms."
   },
   fa: {
-    welcome: "میز تجارت و مشاور هوش بازرگانی AuraLux",
+    welcome: "میز تجارت و مشاور هوش بازرگانی Eslami",
     advice: "در بخش زیر برای بررسی سازگاری قوانین مشخصات، زمان‌بندی مسیرهای حمل، مقررات سرتیفیکیت‌ها و تعرفه واردات استعلام نمایید."
   }
 };
@@ -76,7 +76,7 @@ export default function InquiryAgent({ lang }: InquiryAgentProps) {
   const [messages, setMessages] = useState<AdviserMessage[]>([
     {
       role: "model",
-      content: "Welcome, Trade Director. I am your specialized AuraLux Global Exporter Trade Consultant. I hold complete compliance catalogs regarding our premium saffron, bio-nectars, Muscovite insulation, and indigo halites. How may I facilitate your global container supply pipeline today?",
+      content: "Welcome, Trade Director. I am your specialized Eslami Global Trading Exporter Trade Consultant. I hold complete compliance catalogs regarding our premium saffron, bio-nectars, Muscovite insulation, and indigo halites. How may I facilitate your global container supply pipeline today?",
       timestamp: new Date().toISOString()
     }
   ]);
