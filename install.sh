@@ -32,8 +32,29 @@ if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
 else
   CURRENT_DIR="$(pwd)"
 fi
-INSTALL_PATH="$CURRENT_DIR"
-TEMP_DIR="${INSTALL_PATH}/temp/install_workspace"
+
+# ==============================================================================
+#  ENTERPRISE PROVISIONER INITIAL PROPERTIES (Strict-Mode safe)
+# ==============================================================================
+CUSTOM_DOMAIN="eslami-global.com"
+LETSENCRYPT_EMAIL="procurement@eslami-global.com"
+GITHUB_REPO_URL="https://github.com/mohamadkazemt/iran-pistachio-export.git"
+GIT_BRANCH="main"
+INSTALL_PATH="/var/www/eslami-global-trading"
+DB_NAME="eslami_trade"
+DB_USER="eslami_admin"
+DB_PASS_RAW=""
+ENABLE_SSL="y"
+ENABLE_REDIS="y"
+ENABLE_BACKUPS="y"
+ADMIN_USER="admin"
+ADMIN_PASS=""
+APP_PORT="3000"
+GEMINI_API_KEY=""
+BACKUP_AWS_S3_PATH=""
+SSL_EMAIL="$LETSENCRYPT_EMAIL"
+
+TEMP_DIR="${CURRENT_DIR}/temp/install_workspace"
 
 # Line-number debugging and error reporting
 trap 'err_report $LINENO' ERR
@@ -48,6 +69,70 @@ err_report() {
 cleanup() {
   if [[ -d "${TEMP_DIR:-}" ]]; then
     rm -rf "$TEMP_DIR" || true
+  fi
+}
+
+# --- Validation Routines ---
+validate_domain() {
+  local domain="$1"
+  if [[ "$domain" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+validate_email() {
+  local email="$1"
+  if [[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+validate_port() {
+  local port="$1"
+  if [[ "$port" =~ ^[0-9]+$ ]] && [[ "$port" -ge 1 ]] && [[ "$port" -le 65535 ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+prompt_password() {
+  local prompt_msg="$1"
+  local var_name="$2"
+  local default_val="$3"
+  local input=""
+  
+  if [[ ! -t 0 ]]; then
+    eval "$var_name=\"$default_val\""
+    return
+  fi
+
+  echo -n -e "$prompt_msg"
+  
+  local char
+  while IFS= read -r -s -n1 char; do
+    if [[ "$char" == $'\0' || "$char" == $'\n' ]]; then
+      break
+    elif [[ "$char" == $'\177' || "$char" == $'\010' ]]; then
+      if [[ ${#input} -gt 0 ]]; then
+        input="${input%?}"
+        echo -n -e "\b \b"
+      fi
+    else
+      input+="$char"
+      echo -n "*"
+    fi
+  done
+  echo ""
+
+  if [[ -z "$input" ]]; then
+    eval "$var_name=\"$default_val\""
+  else
+    eval "$var_name=\"$input\""
   fi
 }
 
@@ -100,12 +185,16 @@ preflight_validation() {
 
   # Disk space requirements (Warn below 2GB free)
   local free_disk_kb
+  local check_path="$CURRENT_DIR"
+  if [[ ! -d "$check_path" ]]; then
+    check_path="/"
+  fi
   # Use POSIX standard formatting (-P) to prevent line-wrapping on long logical volume (LVM) paths
-  free_disk_kb=$(df -Pk "$INSTALL_PATH" | tail -n 1 | awk '{print $4}' | tr -d '%')
+  free_disk_kb=$(df -Pk "$check_path" | tail -n 1 | awk '{print $4}' | tr -d '%')
 
   # Fallback chain for high-reliability in non-standard container or virtual environments
   if [[ ! "$free_disk_kb" =~ ^[0-9]+$ ]]; then
-    free_disk_kb=$(df -k "$INSTALL_PATH" | awk 'NR==2 {print $4}' | tr -d '%' || echo "")
+    free_disk_kb=$(df -k "$check_path" | awk 'NR==2 {print $4}' | tr -d '%' || echo "")
     if [[ ! "$free_disk_kb" =~ ^[0-9]+$ ]]; then
       # Ultimate fallback to bypass blocking checks if df parsing fails entirely
       free_disk_kb=10485760 # 10GB in KB (safe bypass)
@@ -134,42 +223,202 @@ preflight_validation() {
 # Run preflight
 preflight_validation
 
-# --- 3. Interactive Systems Config Verification ---
-echo -e "\n${BOLD}${CYAN}--- PART B: COMPILING AND ENVIROMENT PROTOCOLS ---${NC}"
-echo -e "Workspace Target Folder: ${GREEN}$INSTALL_PATH${NC}"
+# --- 3. Interactive Systems Config Wizard ---
+start_interactive_wizard() {
+  if [[ ! -t 0 ]]; then
+    echo -e "\n${YELLOW}[INFO] Unattended/Non-interactive shell detected. Skipping wizard, using production defaults.${NC}"
+    # If DB_PASS_RAW remains empty, generate one
+    if [[ -z "${DB_PASS_RAW:-}" ]]; then
+      DB_PASS_RAW=$(openssl rand -hex 24)
+    fi
+    # If ADMIN_PASS remains empty, generate one
+    if [[ -z "${ADMIN_PASS:-}" ]]; then
+      ADMIN_PASS=$(openssl rand -hex 16)
+    fi
+    return
+  fi
 
-# Prompts domain setup
-read -p "Enter Target Main Domain (e.g., eslami-global.com): " CUSTOM_DOMAIN_INPUT || true
-CUSTOM_DOMAIN="${CUSTOM_DOMAIN_INPUT:-eslami-global.com}"
-echo -e "Target Domain configured to: ${GREEN}$CUSTOM_DOMAIN${NC}"
+  echo -e "\n${BOLD}${CYAN}================================================================================${NC}"
+  echo -e "${BOLD}${CYAN}                  ENTERPRISE DEPLOYMENT CONFIGURATION WIZARD                     ${NC}"
+  echo -e "${BOLD}${CYAN}================================================================================${NC}"
+  echo -e "You will be guided through configuring your high-availability instance."
+  echo -e "Press [ENTER] at any prompt to accept the default recommended value."
+  echo -e "${CYAN}--------------------------------------------------------------------------------${NC}\n"
 
-# Prompts email
-read -p "Enter SMTP Certbot SSL notification email: " SSL_EMAIL_INPUT || true
-SSL_EMAIL="${SSL_EMAIL_INPUT:-procurement@eslami-global.com}"
+  # 1. Custom Domain name
+  while true; do
+    echo -n -e "${BOLD}1. Enter production domain name [Default: ${GREEN}$CUSTOM_DOMAIN${NC}]: "
+    read -r input || true
+    local val="${input:-$CUSTOM_DOMAIN}"
+    if validate_domain "$val"; then
+      CUSTOM_DOMAIN="$val"
+      break
+    else
+      echo -e "${RED}[ERROR] Invalid domain format (e.g., example.com). Please try again.${NC}"
+    fi
+  done
 
-# Prompts port bindings
-read -p "Enter Local binding web port [Default: 3000]: " APP_PORT_INPUT || true
-APP_PORT="${APP_PORT_INPUT:-3000}"
+  # 2. SSL Email
+  while true; do
+    echo -n -e "${BOLD}2. Enter Let's Encrypt SSL contact email [Default: ${GREEN}$LETSENCRYPT_EMAIL${NC}]: "
+    read -r input || true
+    local val="${input:-$LETSENCRYPT_EMAIL}"
+    if validate_email "$val"; then
+      LETSENCRYPT_EMAIL="$val"
+      SSL_EMAIL="$LETSENCRYPT_EMAIL" # Maintain backward compatibility
+      break
+    else
+      echo -e "${RED}[ERROR] Invalid email format. Please try again.${NC}"
+    fi
+  done
 
-read -p "Enter GEMINI_API_KEY (optional, press Enter to omit): " GEMINI_API_KEY_INPUT || true
-GEMINI_API_KEY="${GEMINI_API_KEY_INPUT:-}"
+  # 3. GitHub repository URL
+  echo -n -e "${BOLD}3. Enter GitHub repository URL [Default: ${GREEN}$GITHUB_REPO_URL${NC}]: "
+  read -r input || true
+  GITHUB_REPO_URL="${input:-$GITHUB_REPO_URL}"
 
-read -p "Enter Target cloud AWS/R2 S3 Backup path (optional, press Enter to omit): " BACKUP_AWS_S3_PATH_INPUT || true
-BACKUP_AWS_S3_PATH="${BACKUP_AWS_S3_PATH_INPUT:-}"
+  # 4. Git Branch
+  echo -n -e "${BOLD}4. Enter Git branch [Default: ${GREEN}$GIT_BRANCH${NC}]: "
+  read -r input || true
+  GIT_BRANCH="${input:-$GIT_BRANCH}"
 
-echo -e "\n${CYAN}--------------------------------------------------------------------------------${NC}"
-echo -e " Target Domain        : ${BOLD}${GREEN}https://$CUSTOM_DOMAIN${NC}"
-echo -e " Listening Web Port   : ${BOLD}${GREEN}$APP_PORT${NC}"
-echo -e " Operator SSL Email   : ${BOLD}${GREEN}$SSL_EMAIL${NC}"
-echo -e " Target Folder Path   : ${BOLD}${GREEN}$INSTALL_PATH${NC}"
-echo -e " Gemini API Key Status: ${BOLD}${GREEN}$([[ -n "$GEMINI_API_KEY" ]] && echo "PROVIDED" || echo "OMITTED")${NC}"
-echo -e "${CYAN}--------------------------------------------------------------------------------${NC}"
-read -p "Confirm production infrastructure parameters setting? (y/N): " CONFIRM_INPUT || true
-CONFIRM="${CONFIRM_INPUT:-n}"
-if [[ ! "$CONFIRM" =~ ^[yY]$ ]]; then
-  echo -e "${RED}[ORCHESTRATION REJECTED] Deployment sequence terminated by administrator.${NC}"
-  exit 1
-fi
+  # 5. Installation Path
+  echo -n -e "${BOLD}5. Enter direct installation absolute path [Default: ${GREEN}$INSTALL_PATH${NC}]: "
+  read -r input || true
+  INSTALL_PATH="${input:-$INSTALL_PATH}"
+
+  # 6. DB Name
+  echo -n -e "${BOLD}6. Enter PostgreSQL database name [Default: ${GREEN}$DB_NAME${NC}]: "
+  read -r input || true
+  DB_NAME="${input:-$DB_NAME}"
+
+  # 7. DB User
+  echo -n -e "${BOLD}7. Enter PostgreSQL user [Default: ${GREEN}$DB_USER${NC}]: "
+  read -r input || true
+  DB_USER="${input:-$DB_USER}"
+
+  # 8. DB Password (masked)
+  prompt_password "8. Enter PostgreSQL password [Leave blank to generate secure random password]: " "DB_PASS_RAW" ""
+  if [[ -z "${DB_PASS_RAW:-}" ]]; then
+    DB_PASS_RAW=$(openssl rand -hex 24)
+    echo -e "   -> ${YELLOW}Generated high-entropy DB password automatically.${NC}"
+  fi
+
+  # 9. App Port
+  while true; do
+    echo -n -e "${BOLD}9. Enter local app listening port [Default: ${GREEN}$APP_PORT${NC}]: "
+    read -r input || true
+    local val="${input:-$APP_PORT}"
+    if validate_port "$val"; then
+      APP_PORT="$val"
+      break
+    else
+      echo -e "${RED}[ERROR] Invalid port range (1-65535). Please try again.${NC}"
+    fi
+  done
+
+  # 10. Enable SSL
+  while true; do
+    echo -n -e "${BOLD}10. Enable SSL via Certbot Let's Encrypt? (y/n) [Default: ${GREEN}$ENABLE_SSL${NC}]: "
+    read -r input || true
+    local val="${input:-$ENABLE_SSL}"
+    val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+    if [[ "$val" == "y" || "$val" == "n" ]]; then
+      ENABLE_SSL="$val"
+      break
+    else
+      echo -e "${RED}[ERROR] Please enter 'y' or 'n'.${NC}"
+    fi
+  done
+
+  # 11. Enable Redis
+  while true; do
+    echo -n -e "${BOLD}11. Enable local Redis Caching server? (y/n) [Default: ${GREEN}$ENABLE_REDIS${NC}]: "
+    read -r input || true
+    local val="${input:-$ENABLE_REDIS}"
+    val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+    if [[ "$val" == "y" || "$val" == "n" ]]; then
+      ENABLE_REDIS="$val"
+      break
+    else
+      echo -e "${RED}[ERROR] Please enter 'y' or 'n'.${NC}"
+    fi
+  done
+
+  # 12. Enable Backups
+  while true; do
+    echo -n -e "${BOLD}12. Enable Automatic Daily Backups (02:00 AM Cron)? (y/n) [Default: ${GREEN}$ENABLE_BACKUPS${NC}]: "
+    read -r input || true
+    local val="${input:-$ENABLE_BACKUPS}"
+    val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+    if [[ "$val" == "y" || "$val" == "n" ]]; then
+      ENABLE_BACKUPS="$val"
+      break
+    else
+      echo -e "${RED}[ERROR] Please enter 'y' or 'n'.${NC}"
+    fi
+  done
+
+  # 13. Admin Username
+  echo -n -e "${BOLD}13. Enter Admin username [Default: ${GREEN}$ADMIN_USER${NC}]: "
+  read -r input || true
+  ADMIN_USER="${input:-$ADMIN_USER}"
+
+  # 14. Admin Password (masked)
+  prompt_password "14. Enter Admin panel password [Leave blank to generate secure password]: " "ADMIN_PASS" ""
+  if [[ -z "${ADMIN_PASS:-}" ]]; then
+    ADMIN_PASS=$(openssl rand -hex 16)
+    echo -e "   -> ${YELLOW}Generated secure Admin password automatically.${NC}"
+  fi
+
+  # Optional 15. Gemini API Key
+  echo -n -e "${BOLD}15. Enter GEMINI_API_KEY (optional, press Enter to skip): "
+  read -r input || true
+  GEMINI_API_KEY="${input:-$GEMINI_API_KEY}"
+
+  # Optional 16. S3 Backup Path
+  echo -n -e "${BOLD}16. Enter Target cloud AWS/R2 S3 Backup path (optional, press Enter to skip): "
+  read -r input || true
+  BACKUP_AWS_S3_PATH="${input:-$BACKUP_AWS_S3_PATH}"
+
+  # Design configuration review card
+  echo -e "\n${BOLD}${CYAN}--------------------------------------------------------------------------------${NC}"
+  echo -e "${BOLD}${BG_GREEN}                  REVIEW PROPOSED SUBSYSTEMS CONFIGURATION                      ${NC}"
+  echo -e "${BOLD}${CYAN}--------------------------------------------------------------------------------${NC}"
+  echo -e " - Target Production Domain : ${BOLD}${GREEN}https://$CUSTOM_DOMAIN${NC}"
+  echo -e " - SSL Contact / ACME Email : ${BOLD}${GREEN}$LETSENCRYPT_EMAIL${NC}"
+  echo -e " - GitHub Repository Target : ${BOLD}${GREEN}$GITHUB_REPO_URL${NC} (Branch: ${CYAN}$GIT_BRANCH${NC})"
+  echo -e " - Installation Base Folder : ${BOLD}${GREEN}$INSTALL_PATH${NC}"
+  echo -e " - PostgreSQL Catalog Name  : ${BOLD}${GREEN}$DB_NAME${NC}"
+  echo -e " - PostgreSQL Login User    : ${BOLD}${GREEN}$DB_USER${NC}"
+  echo -e " - PostgreSQL Password      : [HIDDEN] Security Mask Active"
+  echo -e " - Local App Binding Port   : ${BOLD}${GREEN}$APP_PORT${NC}"
+  echo -e " - Nginx SSL Enabled?       : ${BOLD}${GREEN}$(echo "$ENABLE_SSL" | tr '[:lower:]' '[:upper:]')${NC}"
+  echo -e " - Redis Caching Enabled?   : ${BOLD}${GREEN}$(echo "$ENABLE_REDIS" | tr '[:lower:]' '[:upper:]')${NC}"
+  echo -e " - Daily Auto-Backups?     : ${BOLD}${GREEN}$(echo "$ENABLE_BACKUPS" | tr '[:lower:]' '[:upper:]')${NC}"
+  echo -e " - Platform Admin Username  : ${BOLD}${GREEN}$ADMIN_USER${NC}"
+  echo -e " - Platform Admin Password  : ${BOLD}${GREEN}$ADMIN_PASS${NC}"
+  if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+    echo -e " - Core Gemini API Key      : ${BOLD}${GREEN}Configured (Encrypted)${NC}"
+  else
+    echo -e " - Core Gemini API Key      : ${BOLD}${YELLOW}Omitted${NC}"
+  fi
+  if [[ -n "${BACKUP_AWS_S3_PATH:-}" ]]; then
+    echo -e " - Remote Storage Path      : ${BOLD}${GREEN}$BACKUP_AWS_S3_PATH${NC}"
+  else
+    echo -e " - Remote Storage Path      : ${BOLD}${YELLOW}Omitted (Local Backups only)${NC}"
+  fi
+  echo -e "${BOLD}${CYAN}--------------------------------------------------------------------------------${NC}"
+  
+  read -p "Commence physical extraction and system level orchestration? (y/N): " CONFIRM_INPUT || true
+  local CONFIRM="${CONFIRM_INPUT:-n}"
+  if [[ ! "$CONFIRM" =~ ^[yY]$ ]]; then
+    echo -e "${RED}[ORCHESTRATION REJECTED] Deployment sequence terminated by administrator.${NC}"
+    exit 1
+  fi
+}
+
+start_interactive_wizard
 
 # --- 4. Directory Structures and Permission Matrices ---
 echo -e "\n${GREEN}[Step 1/13] Provisioning system isolated directory hierarchies (idempotent)...${NC}"
@@ -228,17 +477,15 @@ systemctl start postgresql || true
 # --- 7. PostgreSQL Database User & Credentials Provisioner ---
 echo -e "\n${GREEN}[Step 4/13] Hardening database security boundaries (SCRAM-SHA-256)...${NC}"
 
-# Extract existing password if .env exists, otherwise generate secure alphanumeric password
-DB_PASS_RAW=""
-if [[ -f .env ]]; then
-  DB_PASS_RAW=$(grep "^DATABASE_URL=" .env | sed -E 's/.*eslami_db_user:([^@]+)@.*/\1/' || echo "")
+# Extract existing password if .env exists as a fallback, otherwise use wizard inputs
+if [[ -z "${DB_PASS_RAW:-}" ]]; then
+  if [[ -f .env ]]; then
+    DB_PASS_RAW=$(grep "^DATABASE_URL=" .env | sed -E 's/.*:'"${DB_USER}"':([^@]+)@.*/\1/' || echo "")
+  fi
+  if [[ -z "${DB_PASS_RAW:-}" ]]; then
+    DB_PASS_RAW=$(openssl rand -hex 24)
+  fi
 fi
-if [[ -z "${DB_PASS_RAW}" ]]; then
-  DB_PASS_RAW=$(openssl rand -hex 24)
-fi
-
-DB_USER="eslami_db_user"
-DB_NAME="eslami_global_trading"
 
 echo -e "Registering dedicated user [${DB_USER}] and catalog database [${DB_NAME}] on Postgres (idempotent)..."
 
@@ -296,46 +543,52 @@ systemctl restart postgresql || true
 echo -e "${GREEN}[SUCCESS] PostgreSQL database service configured and hardened.${NC}"
 
 # --- 8. Redis Cache and Buffer Service Provisioning ---
-echo -e "\n${GREEN}[Step 5/13] Deploying and securing Redis Caching system...${NC}"
-apt-get install -y redis-server || true
+if [[ "$ENABLE_REDIS" == "y" ]]; then
+  echo -e "\n${GREEN}[Step 5/13] Deploying and securing Redis Caching system...${NC}"
+  apt-get install -y redis-server || true
 
-# Extract pre-existing Redis password if rerun
-REDIS_PASS_RAW=""
-if [[ -f .env ]]; then
-  REDIS_PASS_RAW=$(grep "^REDIS_URL=" .env | sed -E 's/.*redis:\/\/:([^@]+)@.*/\1/' || echo "")
+  # Extract pre-existing Redis password if rerun
+  REDIS_PASS_RAW=""
+  if [[ -f .env ]]; then
+    REDIS_PASS_RAW=$(grep "^REDIS_URL=" .env | sed -E 's/.*redis:\/\/:([^@]+)@.*/\1/' || echo "")
+  fi
+  if [[ -z "${REDIS_PASS_RAW:-}" ]]; then
+    REDIS_PASS_RAW=$(openssl rand -hex 24)
+  fi
+
+  REDIS_CONF="/etc/redis/redis.conf"
+
+  if [[ -f "$REDIS_CONF" ]]; then
+    cp "$REDIS_CONF" "${REDIS_CONF}.bak"
+    # Bind strictly to localhost
+    sed -i "s/^bind .*/bind 127.0.0.1 ::1/g" "$REDIS_CONF"
+    # Set strong authentication password cleanly
+    sed -i "/^#\s*requirepass /d" "$REDIS_CONF"
+    sed -i "/^requirepass /d" "$REDIS_CONF"
+    echo "requirepass ${REDIS_PASS_RAW}" >> "$REDIS_CONF"
+    # Turn on Append Only File persistence
+    sed -i "s/^appendonly no/appendonly yes/g" "$REDIS_CONF"
+    # Set memory cache eviction limits
+    sed -i "s/^#\s*maxmemory .*/maxmemory 256mb/g" "$REDIS_CONF" || true
+    sed -i "/^maxmemory /d" "$REDIS_CONF"
+    echo "maxmemory 256mb" >> "$REDIS_CONF"
+    
+    sed -i "s/^#\s*maxmemory-policy .*/maxmemory-policy allkeys-lru/g" "$REDIS_CONF" || true
+    sed -i "/^maxmemory-policy /d" "$REDIS_CONF"
+    echo "maxmemory-policy allkeys-lru" >> "$REDIS_CONF"
+  fi
+
+  systemctl enable redis-server || true
+  systemctl restart redis-server || true
+  echo -e "${GREEN}[SUCCESS] Redis secured locally with strict LRU memory limits and AOF persistence.${NC}"
+  REDIS_URL_VAL="redis://:${REDIS_PASS_RAW}@127.0.0.1:6379"
+else
+  echo -e "\n${YELLOW}[Step 5/13] Redis Caching system deployment skipped (disabled by operator).${NC}"
+  REDIS_URL_VAL=""
 fi
-if [[ -z "${REDIS_PASS_RAW}" ]]; then
-  REDIS_PASS_RAW=$(openssl rand -hex 24)
-fi
 
-REDIS_CONF="/etc/redis/redis.conf"
-
-if [[ -f "$REDIS_CONF" ]]; then
-  cp "$REDIS_CONF" "${REDIS_CONF}.bak"
-  # Bind strictly to localhost
-  sed -i "s/^bind .*/bind 127.0.0.1 ::1/g" "$REDIS_CONF"
-  # Set strong authentication password cleanly
-  sed -i "/^#\s*requirepass /d" "$REDIS_CONF"
-  sed -i "/^requirepass /d" "$REDIS_CONF"
-  echo "requirepass ${REDIS_PASS_RAW}" >> "$REDIS_CONF"
-  # Turn on Append Only File persistence
-  sed -i "s/^appendonly no/appendonly yes/g" "$REDIS_CONF"
-  # Set memory cache eviction limits
-  sed -i "s/^#\s*maxmemory .*/maxmemory 256mb/g" "$REDIS_CONF" || true
-  sed -i "/^maxmemory /d" "$REDIS_CONF"
-  echo "maxmemory 256mb" >> "$REDIS_CONF"
-  
-  sed -i "s/^#\s*maxmemory-policy .*/maxmemory-policy allkeys-lru/g" "$REDIS_CONF" || true
-  sed -i "/^maxmemory-policy /d" "$REDIS_CONF"
-  echo "maxmemory-policy allkeys-lru" >> "$REDIS_CONF"
-fi
-
-systemctl enable redis-server || true
-systemctl restart redis-server || true
-echo -e "${GREEN}[SUCCESS] Redis secured locally with strict LRU memory limits and AOF persistence.${NC}"
-
-# --- 9. Automated Environment Configuration Generation (.env) ---
-echo -e "\n${GREEN}[Step 6/13] Composing secure global runtime configurations (.env)...${NC}"
+# --- 9. Automated Environment Configuration Generation (.env & .env.production) ---
+echo -e "\n${GREEN}[Step 6/13] Composing secure global runtime configurations (.env and .env.production)...${NC}"
 
 JWT_SECURE=""
 SESS_SECURE=""
@@ -345,15 +598,17 @@ if [[ -f .env ]]; then
   SESS_SECURE=$(grep "^SESSION_SECRET=" .env | cut -d'=' -f2- | tr -d '"'\''' || echo "")
 fi
 
-if [[ -z "${JWT_SECURE}" ]]; then JWT_SECURE=$(openssl rand -hex 24); fi
-if [[ -z "${SESS_SECURE}" ]]; then SESS_SECURE=$(openssl rand -hex 24); fi
+if [[ -z "${JWT_SECURE:-}" ]]; then JWT_SECURE=$(openssl rand -hex 24); fi
+if [[ -z "${SESS_SECURE:-}" ]]; then SESS_SECURE=$(openssl rand -hex 24); fi
 
 DATABASE_URL_VAL="postgresql://${DB_USER}:${DB_PASS_RAW}@127.0.0.1:5432/${DB_NAME}?schema=public"
-REDIS_URL_VAL="redis://:${REDIS_PASS_RAW}@127.0.0.1:6379"
 
-cat <<EOT > .env
+# Format environment declarations block
+define_env_contents() {
+  cat <<EOT
 NODE_ENV=production
 PORT=$APP_PORT
+DOMAIN=$CUSTOM_DOMAIN
 DATABASE_URL="$DATABASE_URL_VAL"
 REDIS_URL="$REDIS_URL_VAL"
 JWT_SECRET="$JWT_SECURE"
@@ -361,12 +616,19 @@ SESSION_SECRET="$SESS_SECURE"
 GEMINI_API_KEY="$GEMINI_API_KEY"
 BACKUP_AWS_S3_PATH="$BACKUP_AWS_S3_PATH"
 STORAGE_PROVIDER="LOCAL_DISK"
+ADMIN_USER="$ADMIN_USER"
+ADMIN_PASS="$ADMIN_PASS"
+UPLOADS_PATH="$INSTALL_PATH/uploads"
 EOT
+}
+
+define_env_contents > .env
+define_env_contents > .env.production
 
 # Set correct properties on env files
-chown "$REAL_USER":"$REAL_USER" .env
-chmod 600 .env
-echo -e "${GREEN}[SUCCESS] High-entropy environment properties compiled to .env with strict file permissions.${NC}"
+chown "$REAL_USER":"$REAL_USER" .env .env.production
+chmod 600 .env .env.production
+echo -e "${GREEN}[SUCCESS] High-entropy environment properties compiled cleanly to .env and .env.production with strict file permissions.${NC}"
 
 # --- 10. Node Dependency Alignment & Safe Bundle Compilations ---
 echo -e "\n${GREEN}[Step 7/13] Resolving Node packages and compiling production bundles...${NC}"
@@ -600,19 +862,23 @@ fi
 
 # --- 14. SSL Certificate Provisioning via Certbot ---
 echo -e "\n${GREEN}[Step 11/13] Transport Encryption Auto-Provisioning (Certbot SSL)...${NC}"
-RUN_SSL=true
-if [[ -f "/etc/letsencrypt/live/$CUSTOM_DOMAIN/fullchain.pem" ]]; then
-  echo -e "${GREEN}[INFO] Active SSL domains keys verified on Certbot. Skipping regeneration...${NC}"
-  RUN_SSL=false
-fi
+if [[ "$ENABLE_SSL" == "y" ]]; then
+  RUN_SSL=true
+  if [[ -f "/etc/letsencrypt/live/$CUSTOM_DOMAIN/fullchain.pem" ]]; then
+    echo -e "${GREEN}[INFO] Active SSL domains keys verified on Certbot. Skipping regeneration...${NC}"
+    RUN_SSL=false
+  fi
 
-if [[ "$RUN_SSL" == "true" ]]; then
-  echo "Executing Certbot TLS registries... Please ensure DNS pointers resolve correctly."
-  certbot --nginx --non-interactive --agree-tos --email "$SSL_EMAIL" -d "$CUSTOM_DOMAIN" -d "www.$CUSTOM_DOMAIN" --keep-until-expiring || {
-    echo -e "${RED}[WARNING] Certbot generation skipped. Configure server DNS pointers first.${NC}"
-  }
+  if [[ "$RUN_SSL" == "true" ]]; then
+    echo "Executing Certbot TLS registries... Please ensure DNS pointers resolve correctly."
+    certbot --nginx --non-interactive --agree-tos --email "$SSL_EMAIL" -d "$CUSTOM_DOMAIN" -d "www.$CUSTOM_DOMAIN" --keep-until-expiring || {
+      echo -e "${RED}[WARNING] Certbot generation skipped. Configure server DNS pointers first.${NC}"
+    }
+  fi
+  systemctl enable certbot.timer || true
+else
+  echo -e "${YELLOW}[INFO] Certbot SSL generation skipped (disabled by operator).${NC}"
 fi
-systemctl enable certbot.timer || true
 
 # --- 15. Network Firewalls & Intrusion Monitoring Hardening ---
 echo -e "\n${GREEN}[Step 12/13] Restricting firewall routes (UFW & Fail2ban)...${NC}"
@@ -651,10 +917,14 @@ systemctl restart fail2ban || true
 systemctl enable fail2ban || true
 
 # --- 16. Setup Crond Automated Backup Tasks ---
-echo -e "\nIntegrating daily /backup.sh cron job schedules..."
-CRON_JOB="0 2 * * * /bin/bash /var/www/eslami-global-trading/backup.sh >> /var/log/cron-eslami-backup.log 2>&1"
-(crontab -l 2>/dev/null | grep -v "backup.sh"; echo "$CRON_JOB") | crontab - || true
-echo -e "${GREEN}[SUCCESS] Automatic midnight backup cron added (02:00 AM daily).${NC}"
+if [[ "$ENABLE_BACKUPS" == "y" ]]; then
+  echo -e "\nIntegrating daily /backup.sh cron job schedules..."
+  CRON_JOB="0 2 * * * /bin/bash $INSTALL_PATH/backup.sh >> /var/log/cron-eslami-backup.log 2>&1"
+  (crontab -l 2>/dev/null | grep -v "backup.sh"; echo "$CRON_JOB") | crontab - || true
+  echo -e "${GREEN}[SUCCESS] Automatic midnight backup cron added (02:00 AM daily).${NC}"
+else
+  echo -e "\nSkipping automatic daily backups cron setup (disabled by operator)."
+fi
 
 # --- 17. Comprehensive Live Production Diagnostics ---
 echo -e "\n${GREEN}[Step 13/13] Executing live operational health tests...${NC}"
@@ -676,7 +946,11 @@ else
   
   echo -e "\nLive Services Matrix Status Analysis:"
   echo -e " - PostgreSQL status : ${BOLD}${GREEN}${DB_STATUS}${NC}"
-  echo -e " - Redis cache status: ${BOLD}${GREEN}${CACHE_STATUS}${NC}"
+  if [[ "$ENABLE_REDIS" == "y" ]]; then
+    echo -e " - Redis cache status: ${BOLD}${GREEN}${CACHE_STATUS}${NC}"
+  else
+    echo -e " - Redis cache status: ${BOLD}${YELLOW}DISABLED${NC}"
+  fi
   echo -e " - Media read/write  : ${BOLD}${GREEN}WRITABLE (Checked)${NC}"
 fi
 
@@ -689,10 +963,18 @@ echo -e "               ESLAMI GLOBAL TRADING SERVICE IS LIVE // PROVISION COMPL
 echo -e "${BG_GREEN}================================================================================${NC}"
 echo -e " Live Domain URL    : ${BOLD}${GREEN}https://$CUSTOM_DOMAIN${NC}"
 echo -e " Database Port      : ${BOLD}${CYAN}Postgres Localhost (Port: 5432)${NC}"
-echo -e " Caching Server     : ${BOLD}${CYAN}Redis Secured (Port: 6379)${NC}"
+if [[ "$ENABLE_REDIS" == "y" ]]; then
+  echo -e " Caching Server     : ${BOLD}${CYAN}Redis Secured (Port: 6379)${NC}"
+else
+  echo -e " Caching Server     : ${BOLD}${YELLOW}Disabled${NC}"
+fi
 echo -e " Local Node Binds   : ${BOLD}${CYAN}http://127.0.0.1:$APP_PORT${NC}"
-echo -e " Admin Access Node  : ${BOLD}${GREEN}procurement@eslami-global.com (Default Pass: Eslami_secure_2026!)${NC}"
-echo -e " Daily Backup Timer : ${BOLD}${GREEN}Active via Crontab (Runs daily at 02:00 AM)${NC}"
+echo -e " Admin Access Node  : ${BOLD}${GREEN}$ADMIN_USER (Pass: $ADMIN_PASS)${NC}"
+if [[ "$ENABLE_BACKUPS" == "y" ]]; then
+  echo -e " Daily Backup Timer : ${BOLD}${GREEN}Active via Crontab (Runs daily at 02:00 AM)${NC}"
+else
+  echo -e " Daily Backup Timer : ${BOLD}${YELLOW}Disabled${NC}"
+fi
 echo -e "\nOperational Utilities Wrap Commands:"
 echo -e "  - ${YELLOW}bash update.sh${NC}   // Fetches git changes, installs npm nodes, rolls updates with safe checks"
 echo -e "  - ${YELLOW}bash restart.sh${NC}  // Gracefully reloads server worker and scheduler processes"
