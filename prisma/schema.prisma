@@ -17,6 +17,8 @@ enum UserRole {
   LOGISTICS_OFFICER
   REGISTERED_CLIENT
   COMPLIANCE_AUDITOR
+
+  @@map("user_role")
 }
 
 model User {
@@ -80,6 +82,8 @@ enum StorageProvider {
   AWS_S3
   CLOUDFLARE_R2
   GOOGLE_CLOUD_STORAGE
+
+  @@map("storage_provider")
 }
 
 enum OptimizationStatus {
@@ -87,6 +91,8 @@ enum OptimizationStatus {
   PROCESSING
   OPTIMIZED
   FAILED
+
+  @@map("optimization_status")
 }
 
 model MediaFile {
@@ -209,6 +215,8 @@ enum PublishState {
   PENDING_COMPLIANCE
   PUBLISHED
   ARCHIVED
+
+  @@map("publish_state")
 }
 
 model Post {
@@ -293,6 +301,8 @@ enum PriorityLevel {
   MEDIUM
   HIGH
   URGENT
+
+  @@map("priority_level")
 }
 
 enum CustomsWorkflowStage {
@@ -302,6 +312,8 @@ enum CustomsWorkflowStage {
   CUSTOMS_SUBMISSION
   PASSED
   SUSPENDED
+
+  @@map("customs_workflow_stage")
 }
 
 enum RfqStatus {
@@ -311,6 +323,8 @@ enum RfqStatus {
   NEGOTIATING
   CONCLUDED
   CANCELLED
+
+  @@map("rfq_status")
 }
 
 model RFQ {
@@ -415,6 +429,8 @@ enum VerificationState {
   UNDER_REVIEW
   APPROVED
   REJECTED
+
+  @@map("verification_state")
 }
 
 model RfqDocument {
@@ -438,7 +454,7 @@ model RfqDocument {
 // ==========================================
 
 model AuditEvent {
-  id            String   @id @default(uuid())
+  id            String   @default(uuid())
   entityType    String   @map("entity_type") // e.g., "User", "Product", "RFQ"
   entityId      String?  @map("entity_id")
   actionType    String   @map("action_type") // CREATE, UPDATE, DELETE, RESTORE, LOGIN, EXPORT
@@ -456,6 +472,7 @@ model AuditEvent {
   
   timestamp     DateTime @default(now())
 
+  @@id([id, timestamp])
   @@index([entityType, entityId])
   @@index([correlationId])
   @@index([timestamp])
@@ -505,6 +522,8 @@ enum JobStatus {
   RUNNING
   COMPLETED
   FAILED
+
+  @@map("job_status")
 }
 
 model Job {
@@ -575,7 +594,7 @@ model AnalyticsSession {
 }
 
 model AnalyticsEvent {
-  id         String           @id @default(uuid())
+  id         String           @default(uuid())
   sessionId  String           @map("sessionId")
   session    AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   
@@ -586,6 +605,7 @@ model AnalyticsEvent {
 
   timestamp  DateTime         @default(now())
 
+  @@id([id, timestamp])
   @@index([eventName])
   @@index([timestamp])
   @@map("analytics_events")
