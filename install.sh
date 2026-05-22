@@ -431,8 +431,8 @@ fi
 echo -e "\n${GREEN}[SETUP] Enforcing deployment repository alignment on $INSTALL_PATH...${NC}"
 mkdir -p "$INSTALL_PATH"
 
-if [[ ! -f "$INSTALL_PATH/package.json" ]]; then
-  echo -e "${YELLOW}[INFO] Codebase package.json not found in $INSTALL_PATH. Fetching repository via Git...${NC}"
+if [[ ! -d "$INSTALL_PATH/.git" ]]; then
+  echo -e "${YELLOW}[INFO] Codebase directory or Git repository not initialized in $INSTALL_PATH. Initializing and fetching...${NC}"
   cd "$INSTALL_PATH"
   git init
   git remote add origin "$GITHUB_REPO_URL" || true
@@ -441,8 +441,13 @@ if [[ ! -f "$INSTALL_PATH/package.json" ]]; then
     git checkout -b "$GIT_BRANCH" origin/"$GIT_BRANCH" || true
   }
 else
-  echo -e "${GREEN}[INFO] Active codebase verified at $INSTALL_PATH.${NC}"
+  echo -e "${GREEN}[INFO] Active Git codebase verified at $INSTALL_PATH. Fetching latest changes from branch $GIT_BRANCH...${NC}"
   cd "$INSTALL_PATH"
+  git remote set-url origin "$GITHUB_REPO_URL" || true
+  git fetch origin "$GIT_BRANCH" || true
+  git checkout -f FETCH_HEAD || {
+    git reset --hard "origin/$GIT_BRANCH" || true
+  }
 fi
 
 # Sync file ownership rules so non-root worker users can build the app cleanly
@@ -950,7 +955,9 @@ ufw allow 443/tcp comment 'Nginx HTTPS secure TLS' || true
 ufw --force enable || true
 
 # Configure Fail2ban security jails
-cat <<EOT > /etc/fail2ban/jail.local
+if command -v fail2ban-client &> /dev/null || [ -d "/etc/fail2ban" ]; then
+  mkdir -p /etc/fail2ban
+  cat <<EOT > /etc/fail2ban/jail.local
 [nginx-http-auth]
 enabled = true
 port    = http,https
@@ -971,8 +978,11 @@ findtime = 600
 bantime = 3600
 EOT
 
-systemctl restart fail2ban || true
-systemctl enable fail2ban || true
+  systemctl restart fail2ban || true
+  systemctl enable fail2ban || true
+else
+  echo -e "${YELLOW}[WARNING] Fail2ban is not installed or active. Skipping jail configurations.${NC}"
+fi
 
 # --- 16. Setup Crond Automated Backup Tasks ---
 if [[ "$ENABLE_BACKUPS" == "y" ]]; then
