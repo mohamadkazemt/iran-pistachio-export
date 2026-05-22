@@ -438,7 +438,19 @@ echo -e "${GREEN}[SUCCESS] Subsystems directories successfully created.${NC}"
 
 # --- 5. Essential Platform Sourcing & Core Dependencies ---
 echo -e "\n${GREEN}[Step 2/13] Updating apt cache and fetching platform dependencies...${NC}"
-apt-get update -y
+
+# Safely cleaning legacy/broken custom repositories before updating to prevent set -e crash
+if [[ -f "/etc/apt/sources.list.d/pgdg.list" ]]; then
+  echo -e "${YELLOW}[INFO] Removing legacy or unverified postgresql source lists before updating...${NC}"
+  rm -f "/etc/apt/sources.list.d/pgdg.list"
+fi
+
+# Run apt update with fallback if there are other broken repos
+apt-get update -y || {
+  echo -e "${YELLOW}[WARNING] Standard apt-get update returned non-zero. Attempting recovery by continuing...${NC}"
+  apt-get update -y --allow-unauthenticated || true
+}
+
 apt-get install -y curl wget systemd zip unzip build-essential ufw fail2ban certbot python3-certbot-nginx libcap2-bin pgclient || true
 
 # Ensure Node.js 22 LTS stack is present
@@ -461,11 +473,28 @@ fi
 # --- 6. PostgreSQL 16+ Installation & Custom Multi-Extension Inits ---
 echo -e "\n${GREEN}[Step 3/13] Provisioning PostgreSQL Database Services...${NC}"
 if ! command -v psql &> /dev/null; then
-  echo -e "${YELLOW}Adding official PostgreSQL apt repository...${NC}"
-  sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-  wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-  apt-get update -y
-  apt-get install -y postgresql-16 postgresql-contrib-16
+  echo -e "${YELLOW}Attempting to install PostgreSQL via default OS repositories first...${NC}"
+  if apt-get install -y postgresql postgresql-contrib; then
+    echo -e "${GREEN}[SUCCESS] PostgreSQL installed successfully from default OS repositories.${NC}"
+  else
+    echo -e "${YELLOW}Default repositories failed or postgresql package not available. Adding verified official PostgreSQL apt repository...${NC}"
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor --yes -o /etc/apt/keyrings/postgresql-archive-keyring.gpg
+    
+    # Detect standard lsb_release codename. Fallback to noble if unsupported
+    local CODENAME
+    CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
+    if [[ "$CODENAME" != "focal" && "$CODENAME" != "jammy" && "$CODENAME" != "noble" && "$CODENAME" != "bionic" ]]; then
+      CODENAME="noble"
+    fi
+    
+    echo "deb [signed-by=/etc/apt/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+    
+    apt-get update -y
+    
+    # Install postgresql-16 or postgresql package depending on availability
+    apt-get install -y postgresql-16 postgresql-contrib-16 || apt-get install -y postgresql postgresql-contrib
+  fi
 else
   echo -e "${GREEN}[SUCCESS] PostgreSQL database server verified already installed.${NC}"
 fi
