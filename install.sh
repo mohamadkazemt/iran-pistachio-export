@@ -420,6 +420,34 @@ start_interactive_wizard() {
 
 start_interactive_wizard
 
+# Ensure Git is installed immediately if not present (needed for cloning)
+if ! command -v git &> /dev/null; then
+  echo -e "${YELLOW}[INFO] Git not detected. Installing Git...${NC}"
+  apt-get update -y || { apt-get update -y --allow-unauthenticated || true; }
+  apt-get install -y git
+fi
+
+# Ensure target base folder exists and is initialized with the code base
+echo -e "\n${GREEN}[SETUP] Enforcing deployment repository alignment on $INSTALL_PATH...${NC}"
+mkdir -p "$INSTALL_PATH"
+
+if [[ ! -f "$INSTALL_PATH/package.json" ]]; then
+  echo -e "${YELLOW}[INFO] Codebase package.json not found in $INSTALL_PATH. Fetching repository via Git...${NC}"
+  cd "$INSTALL_PATH"
+  git init
+  git remote add origin "$GITHUB_REPO_URL" || true
+  git fetch origin "$GIT_BRANCH"
+  git checkout -f FETCH_HEAD || {
+    git checkout -b "$GIT_BRANCH" origin/"$GIT_BRANCH" || true
+  }
+else
+  echo -e "${GREEN}[INFO] Active codebase verified at $INSTALL_PATH.${NC}"
+  cd "$INSTALL_PATH"
+fi
+
+# Sync file ownership rules so non-root worker users can build the app cleanly
+chown -R "$REAL_USER":"$REAL_USER" "$INSTALL_PATH"
+
 # --- 4. Directory Structures and Permission Matrices ---
 echo -e "\n${GREEN}[Step 1/13] Provisioning system isolated directory hierarchies (idempotent)...${NC}"
 DIRS=(
