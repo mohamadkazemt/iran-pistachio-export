@@ -1,40 +1,124 @@
-# Eslami Global Trading - Sovereign Trade, Purity & Logistics
+# Eslami Global Trading — Sovereign Trade, Purity & Logistics
+### بازرگانی اسلامی — پرتال توسعه صادرات، هوش گمرکی و مدیریت بین‌المللی کالا
 
-Eslami Global Trading is a premier, high-integrity international export-company portal. It is engineered from the ground up to establish trust, project luxury, and capture verified corporate buyer leads through advanced cargo RFQ wizards, trade analysis whitepapers, and a secure server-side AI-Powered Multilingual Trade Advisor.
-
----
-
-## 🚀 Key Architectural Modules
-
-1. **Brand Identity Overview**: Centered on an elegant, high-contrast dark-themed Slate & Gold design focusing on corporate pillars and verified logistics audit metrics.
-2. **Exquisite Portfolios Catalog**: Highly detailed inventories including **Harmonized System (HS) classifications**, Origin tracing, precision chemical/purity specifications table, packaging safety standards, and instant deep-linking.
-3. **Verified Cargo RFQs wizard**: Lead generation machine allowing importers to request custom quotes under designated **Incoterms 2020 (FOB, CIF, EXW, DDP, CFR)** and attach technical spec files (with strict size checks).
-4. **Compliance Desk Trade IQ Desk**: Powered by server-side **Gemini 3.5**, facilitating multi-lingual discussions about customs certificates, shipping schedules, and phytosanitary clearance regulations.
-5. **Secure Administrative cockpit**: Complete operator control deck (`admin` / `auras_export_2026`) tracking Lead statuses, reviewing Calculated Spam quarantine ratings, checking realtime security audit streams, and managing databases.
-6. **Db Snapshot Backups**: Complete snapshot database dump creation and recovery runbooks.
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge&logo=git" alt="Production Ready" />
+  <img src="https://img.shields.io/badge/Framework-React%2018%20%2B%20Vite-blue?style=for-the-badge&logo=react" alt="React 18" />
+  <img src="https://img.shields.io/badge/Language-TypeScript-blue?style=for-the-badge&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-dimgray?style=for-the-badge&logo=node.js" alt="Node.js" />
+  <img src="https://img.shields.io/badge/AI-Gemini%203.5--Flash-indigo?style=for-the-badge&logo=google" alt="Gemini AI" />
+  <img src="https://img.shields.io/badge/SSL-Secured--256bit-gold?style=for-the-badge" alt="SSL Secured" />
+</p>
 
 ---
 
-## 🛡️ Integrated Cybersecurity Safeguards
+## 🌎 Overview / پیش‌گفتار
 
-- **CSRF Defense**: Stateless token integrity check via header `X-CSRF-Token` on all mutative operations.
-- **Client Rate Limiting**: Limit of 60 requests per minute per IP with dynamic safety lockouts.
-- **Image/Doc Verification**: Strictly rejects any attached documentation exceeding 2.5MB or displaying malicious MIME headers.
-- **Automated Spam Score Quarantine**: Advanced algorithmic scanning score quarantine indicators for inbound comments.
-- **Audit Trails Logger**: In-memory security logs monitoring access success rates, CSRF failures, and IP quarantines.
+### **English (EN)**
+**Eslami Global Trading // بازرگانی اسلامی** is an enterprise-grade full-stack digital gateway designed to showcase high-purity agricultural exports (such as Premium Saffron, Pistachio, and dried reserves) to global markets. Engineered with a luxurious slate-and-gold visual style, it facilitates seamless lead generation through an advanced **Incoterms 2020 Cargo RFQ engine**, real-time secure messaging, system backups, and an intelligent **AI Trade Advisor powered server-side by the Gemini 3.5 API**.
+
+### **فارسی (FA)**
+**هلدینگ بازرگانی اسلامی** سامانه مدیریت لجستیک، تحلیل هوشمند گمرکی و پرتال نمایش و فروش کاتالوگ محصولات فوق‌لوکس کشاورزی (پسته دست‌چین اکبری، زعفران سرگل ارگانیک و فرآورده‌های ممتاز صادراتی) است. این پلتفرم مجهز به موتور اختصاصی صدور درخواست مظنه قیمت (RFQ) منطبق بر قوانین اینکوترمز ۲۰۲۰، پشتیبانی پیشرفته تمام رمزنگاری شده، میز هوش بازرگانی و داوری استانداردهای گمرکی بین‌الملل با استفاده از ظرفیت پردازش سرور-ساید **مدل هوش مصنوعی Gemini 3.5** می‌باشد.
 
 ---
 
-## 🛠️ Local Development & Quickstart
+## ⚡ Quick One-Click Production Deployment / نصب و راه‌اندازی سریع با یک دستور
 
-To run the full-stack Express + Vite application in your local container space:
+To provision the entire production ecosystem (Node LTS v22, PM2 Cluster Management, Nginx Reverse Proxy with Brotli/Gzip optimization, Fail2ban IDS security shields, automatic UFW Firewall, and Let's Encrypt SSL automation) on a fresh Ubuntu Server:
+
+برای راه‌اندازی فوری سامانه با پیکربندی کامل (نود جی‌اس، وب‌سرور انجین‌ایکس، مدیریت فرآیندهای PM2، دیواره آتش، سیستم دفاعی Fail2ban و گواهینامه امنیتی SSL رایگان) بر روی سرور اوبونتو تمیز، کافی‌ست دستور زیر را به عنوان کاربر root در ترمینال اجرا کنید:
 
 ```bash
-# Install node packages
-npm install
-
-# Start development full-stack proxy (tsx server.ts is engaged automatically)
-npm run dev
+# Executing safe production installer
+sudo bash install.sh
 ```
 
-The portal will become active on `http://localhost:3000`. Provide your `GEMINI_API_KEY` in the Secrets configurations tab to turn on the live Trademarks and Regulatory compliance assistant.
+---
+
+## 🧭 Project Architecture / ساختار فایل‌های پروژه
+
+```
+.
+├── server.ts                 # Full-stack Express server coordinating APIs, backup schedules, and Gemini proxy
+├── install.sh                # Linux primary auto-installer & dependency compiler
+├── update.sh                 # Zero-downtime rolling pull, rebuild, and node reloader
+├── restart.sh                # Graceful service restarter script
+├── backup.sh                 # Local system snapshots packager
+├── logs.sh                   # Real-time PM2 log monitoring interface
+├── ecosystem.config.js       # PM2 multi-instance clustering settings
+├── nginx.conf                # Nginx TLS/SSL & HTTP-to-HTTPS redirect templates
+├── src/
+│   ├── App.tsx               # Client router root controlling the slate layouts
+│   ├── main.tsx              # React mounting root
+│   ├── db.ts                 # Multi-lingual local system database controller file
+│   ├── db.json               # Seed content, metadata registries, & admin login accounts
+│   ├── types.ts              # Global TypeScript strict interface definitions
+│   └── components/
+│       ├── Header.tsx        # High-precision responsive header supporting RTL/LTR alignment controls
+│       ├── AdminPanel.tsx    # Administrator lead tracking & database modification center
+│       ├── InquiryAgent.tsx  # Server-side Gemini intelligence chat workspace
+│       ├── RfqForm.tsx       # Dynamic RFQ creation wizard including Incoterms selectors
+│       └── ...
+```
+
+---
+
+## 🔑 Administrative Control Cockpit / میز مدیریت پیشرفته
+
+The administrative dashboard allows trade directors to modify default system variables, download generated lead attachments under strict safety filters, view login auditing streams, and manage system databases.
+
+* **Admin Access URL:** `https://your-domain.com/admin` (or click top "Operator Login" icon)
+* **Default Setup Credentials:**
+  * **Username / نام کاربری:** `admin`
+  * **Password / رمز عبور:** `Admin123456!`
+
+> ⚠️ **SECURITY RECOMMENDATION / توصیه امنیتی مهم**:
+> Upon first successful login, navigate to the **System Backups & Credentials Settings** panel inside the admin dashboard and instantly rotate your cryptographic password passphrase. This will terminate all stale active token sessions globally.
+
+---
+
+## 🤖 Server-Side Gemini Intelligence Suite / هوش مصنوعی و اتصالات شبکه
+
+Importers can communicate with the server-side **Eslami Global Trade IQ Desk** chatbot to navigate Complex Customs Regulations, Quarantine Certifications, HS-Codes indexing, and shipping channels.
+
+To ensure third-party developer secrets remain strictly secure, all AI queries are routed server-side through `server.ts`. Client components never have visibility over the private key.
+
+### Configuration (`.env` properties):
+Make sure to expose your key inside the root `.env` config file:
+```env
+PORT=3000
+NODE_ENV=production
+GEMINI_API_KEY=YOUR_SECURE_GOOGLE_GEMINI_KEY
+```
+
+---
+
+## 👥 Multilingual Brand Formats / شناسه‌های رسمی برند
+
+These brand naming matrices are deeply integrated into the SEO, JSON-LD, schema data, and mobile layouts:
+
+| Language | Official Brand Representation | Target Focus |
+| :--- | :--- | :--- |
+| **Persian (Primary)** | **بازرگانی اسلامی** | هویت رسمی ثبت شده و کاتالوگ داخلی صادراتی |
+| **English (Global)** | **Eslami Global Trading** | International corporate procurement and transport |
+| **English (Alternative)** | **Eslami Trading** | Supply chain listings and clearance schedules |
+| **English (Direct Export)** | **Eslami Global Export** | Saffron and premium pistachio export pipeline |
+
+---
+
+## 📄 Documentation Directory System / راهنماهای گام‌به‌گام و مراجع فنی
+
+For itemized walkthroughs and configurations, consult the specialized files below:
+
+1. **[README_FA.md (راهنمای جامع فارسی)](./README_FA.md)** — مستندات کامل گام‌به‌گام پیکربندی و نگهداری فرآیند توسعه لایه فرانت‌اند و بک‌اند به زبان شیرین فارسی.
+2. **[README_EN.md (English Operations Guide)](./README_EN.md)** — Complete step-by-step developer walkthrough for the full-stack portal in English.
+3. **[DEPLOYMENT.md (Advanced Server Infrastructure)](./DEPLOYMENT.md)** — In-depth configurations for running under systemd, reverse proxies, and continuous integration engines.
+4. **[SECURITY.md (Cybersecurity Matrix & Hardening)](./SECURITY.md)** — Guide to active security setups including Fail2ban, Rate Limiting, CORS headers, CSRF validation, and input sanitation.
+5. **[BACKUPS.md (Data Repositories & Restoration)](./BACKUPS.md)** — Details regarding local JSON-LD databases backends, backup cron schedules, and disaster recovery.
+
+---
+
+<p align="center">
+  <b>Designed with integrity in Kerman, Tehran & Rafsanjan</b><br>
+  <i>Eslami Global Trading Corporation © 2026. All rights global-shipping secure.</i>
+</p>
