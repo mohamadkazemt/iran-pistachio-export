@@ -729,12 +729,7 @@ sudo -u "$REAL_USER" -H npx prisma generate || MIGRATE_ERROR=true
 
 if [[ "$MIGRATE_ERROR" == "false" ]]; then
   echo "Attempting standard Prisma migration deployment..."
-  sudo -u "$REAL_USER" -H npx prisma migrate deploy || {
-    echo -e "${YELLOW}[WARNING] Standard migration deployment failed. Attempting robust schema push fallback...${NC}"
-  }
-  
-  echo "Enforcing absolute physical database alignment... (Prisma DB Push)"
-  sudo -u "$REAL_USER" -H npx prisma db push --accept-data-loss || MIGRATE_ERROR=true
+  sudo -u "$REAL_USER" -H npx prisma migrate deploy || MIGRATE_ERROR=true
 fi
 
 if [[ "$MIGRATE_ERROR" == "true" ]]; then
