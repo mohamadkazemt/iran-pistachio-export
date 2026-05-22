@@ -30,22 +30,20 @@ Deploy our fully autonomous installation directly on a clean **Ubuntu Server (v2
 Execute this command as the root user:
 ```bash
 # Option A: One-line direct execution
-bash <(curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/mohamadkazemt/iran-pistachio-export/main/install.sh)
 
 # Option B: Standard curl pipelining
-curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mohamadkazemt/iran-pistachio-export/main/install.sh | bash
 ```
 
 ### **فارسی (FA)**
-امکان استقرار همه‌جانبه‌ی این سامانه روی **سرورهای خام لینوکس اوبونتو** به صورت کاملاً خودکار در کمتر از ۵ دقیقه فراهم گردیده است. در صورتی که فایل‌های پروژه روی سرور موجود نباشد، نصب‌کننده هوشمند ابتدا اقدام به نصب گیت کرده، مخزن گیت‌هاب را شبیه‌سازی (Clone) می‌کند، کدهای پروداکشن را بیلد کرده، فرآیندهای پس‌زمینه PM2 را خوشه‌بندی کرده، فایروال سرورUFW و سیستم حفاظتی Fail2ban را فعال نموده و نهایتاً گواهینامه امنیتی رایگان SSL Let's Encrypt را برای دامنه شما صادر و متصل می‌کند.
-
 کافی‌ست دستور زیر را به عنوان کاربر ارشد سیستم (`root`) خط فرمان اوبونتو وارد نمایید:
 ```bash
 # روش اول: اجرای تک خطی مستقیم از گیت‌هاب
-bash <(curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/mohamadkazemt/iran-pistachio-export/main/install.sh)
 
 # روش دوم: با استفاده از لوله‌کشی استاندارد curl 
-curl -fsSL https://raw.githubusercontent.com/m-torkzade/eslami-global-trading/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mohamadkazemt/iran-pistachio-export/main/install.sh | bash
 ```
 
 ---
