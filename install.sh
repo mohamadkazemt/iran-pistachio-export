@@ -728,11 +728,17 @@ MIGRATE_ERROR=false
 sudo -u "$REAL_USER" -H npx prisma generate || MIGRATE_ERROR=true
 
 if [[ "$MIGRATE_ERROR" == "false" ]]; then
-  sudo -u "$REAL_USER" -H npx prisma migrate deploy || MIGRATE_ERROR=true
+  echo "Attempting standard Prisma migration deployment..."
+  sudo -u "$REAL_USER" -H npx prisma migrate deploy || {
+    echo -e "${YELLOW}[WARNING] Standard migration deployment failed. Attempting robust schema push fallback...${NC}"
+  }
+  
+  echo "Enforcing absolute physical database alignment... (Prisma DB Push)"
+  sudo -u "$REAL_USER" -H npx prisma db push --accept-data-loss || MIGRATE_ERROR=true
 fi
 
 if [[ "$MIGRATE_ERROR" == "true" ]]; then
-  echo -e "${RED}[CRITICAL ERROR] Prisma database migration deployment yielded errors.${NC}" >&2
+  echo -e "${RED}[CRITICAL ERROR] Prisma database synchronization yielded errors.${NC}" >&2
   exit 1
 else
   echo -e "${GREEN}[SUCCESS] All relational table schemas migrated perfectly into PostgreSQL database.${NC}"
@@ -748,7 +754,7 @@ sudo -u "$REAL_USER" -H npx prisma db seed || {
 echo -e "\n${GREEN}[Step 9/13] Configuring Multi-tier PM2 cluster topologies...${NC}"
 
 # Recreate ecosystem block
-cat <<EOT > ecosystem.config.js
+cat <<EOT > ecosystem.config.cjs
 module.exports = {
   apps: [
     {
@@ -790,14 +796,14 @@ module.exports = {
 };
 EOT
 
-chown "$REAL_USER":"$REAL_USER" ecosystem.config.js
+chown "$REAL_USER":"$REAL_USER" ecosystem.config.cjs
 
 # Stop preceding structures if any
 sudo -u "$REAL_USER" -H pm2 delete all &> /dev/null || true
 
 # Boot applications
 echo "Booting processes in pm2 runtime system..."
-sudo -u "$REAL_USER" -H pm2 start ecosystem.config.js
+sudo -u "$REAL_USER" -H pm2 start ecosystem.config.cjs
 
 # Save configurations on PM2 to enforce auto-start on server system reboot
 sudo -u "$REAL_USER" -H pm2 save

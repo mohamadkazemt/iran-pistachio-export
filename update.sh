@@ -67,9 +67,9 @@ npx prisma migrate deploy || {
 # 6. Multi-tier PM2 Rolling Reload (Zero-Downtime)
 echo "[Update Step 6] Executing rolling reloads on PM2 instances..."
 if command -v pm2 &> /dev/null; then
-  pm2 reload ecosystem.config.js || pm2 restart ecosystem.config.js
+  pm2 reload ecosystem.config.cjs || pm2 restart ecosystem.config.cjs
 else
-  echo -e "${YELLOW}[WARNING] PM2 not active. Fire up manually using: pm2 start ecosystem.config.js${NC}"
+  echo -e "${YELLOW}[WARNING] PM2 not active. Fire up manually using: pm2 start ecosystem.config.cjs${NC}"
 fi
 
 # Pop stash changes back

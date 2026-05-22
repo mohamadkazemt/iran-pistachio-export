@@ -14,7 +14,7 @@ echo -e "${CYAN}[Service Recycler] Triggering graceful rolling reload of PM2 nod
 
 if command -v pm2 &> /dev/null; then
   # Graceful reload propagates traffic seamlessly to new clusters before decommissioning old workers
-  pm2 reload ecosystem.config.js || pm2 restart ecosystem.config.js
+  pm2 reload ecosystem.config.cjs || pm2 restart ecosystem.config.cjs
   echo -e "\n${GREEN}[SUCCESS] All threads (web cluster, worker, scheduler) gracefully recycled.${NC}"
 else
   echo -e "${RED}[ERROR] PM2 runtime manager is not installed or active.${NC}"
